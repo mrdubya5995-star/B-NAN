@@ -743,9 +743,7 @@ const RBPlayer = (() => {
     const elapsedSec = Math.round((now - sessionStartedAt) / 1000);
     sessionStartedAt = now;
     if (elapsedSec <= 0) return;
-    const fresh = await RBDB.getGame(currentGame.id);
-    if (!fresh) return;
-    await RBDB.updateGame(currentGame.id, { playtimeSeconds: (fresh.playtimeSeconds || 0) + elapsedSec });
+    await RBDB.incrementPlaytime(currentGame.id, elapsedSec);
   }
 
   // Best-effort silent sync of the in-game battery save back into B-NAN's
@@ -766,16 +764,19 @@ const RBPlayer = (() => {
 
   async function exitPlayer() {
     hideLoading(); // defensive -- covers exiting mid-load, so the next launch never inherits a stuck overlay
-    // Same spinner, different text: auto-save + the playtime flush below
-    // can take real seconds for a large ROM (a full read-modify-write of
-    // the game's IndexedDB record -- see flushPlaytime's own comment), and
-    // the frozen game frame sitting there with zero feedback during that
-    // reads as "it's just hung," not "it's saving."
+    // Same spinner, different text: auto-save below can still take a
+    // moment for a large save state, and the frozen game frame sitting
+    // there with zero feedback during that reads as "it's just hung,"
+    // not "it's saving." No back button here on purpose -- unlike the
+    // game-loading case, there's nothing to back out OF, this screen IS
+    // the act of returning to the library.
     const loadingEl = document.getElementById("player-loading");
     if (loadingEl) {
       document.getElementById("player-loading-title").textContent = "Returning to library…";
       document.getElementById("player-loading-sub").textContent = "";
       loadingEl.hidden = false;
+      const backBtn = document.getElementById("btn-loading-back");
+      if (backBtn) backBtn.hidden = true;
     }
     if (RBPlayer._nativeSystemId) {
       if (window.RBNative) await window.RBNative.stopNative();
@@ -908,7 +909,6 @@ const RBPlayer = (() => {
     setPaused(!isPaused);
   }
 
-  let loadingReassureTimer = null;
   let loadingGiveUpTimer = null;
 
   // Real problem this solves: without any visible feedback, a slow-to-
@@ -929,21 +929,10 @@ const RBPlayer = (() => {
     const backBtn = document.getElementById("btn-loading-back");
     if (!el) return;
     title.textContent = `Loading ${(game && game.title) || (system && system.name) || "game"}…`;
-    sub.textContent = (system && system.warning) || "";
+    sub.textContent = "";
     el.hidden = false;
     if (backBtn) backBtn.hidden = false;
-    clearTimeout(loadingReassureTimer);
     clearTimeout(loadingGiveUpTimer);
-    // If it's STILL loading after a while, say so explicitly instead of
-    // leaving the player to wonder whether it's stuck -- large files and
-    // demanding cores (3DS especially) can legitimately take a while the
-    // first time.
-    loadingReassureTimer = setTimeout(() => {
-      if (!el.hidden) {
-        sub.textContent = ((system && system.warning) ? system.warning + " " : "") +
-          "Still working — large files and demanding systems can genuinely take a while, especially the first time.";
-      }
-    }, 15000);
     // Belt-and-suspenders for failure modes that never throw a catchable
     // error at all (the iframe's own error/unhandledrejection listeners in
     // iframeDoc cover the ones that do, but a wasm core that just hangs
@@ -959,8 +948,6 @@ const RBPlayer = (() => {
   }
 
   function hideLoading() {
-    clearTimeout(loadingReassureTimer);
-    loadingReassureTimer = null;
     clearTimeout(loadingGiveUpTimer);
     loadingGiveUpTimer = null;
     const el = document.getElementById("player-loading");

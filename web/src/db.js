@@ -6,19 +6,33 @@
 const RBDB = (() => {
   const DB_NAME = "bnan";
   const LEGACY_DB_NAME = "retrobanana"; // pre-rename name -- migrated once, see migrateLegacy()
-  const DB_VERSION = 1;
+  // v2: split romBlob/artBlob out of "games" into their own object stores
+  // (romBlobs/artBlobs, keyed by the same game id). Real bug this fixes,
+  // found by hand: every play session touched updateGame() at least
+  // twice (lastPlayedAt/playCount on launch, playtimeSeconds on exit),
+  // and v1's schema had romBlob sitting INLINE in the same record --
+  // updateGame's own get-modify-put read the ENTIRE record (multi-GB ROM
+  // included) off disk and wrote the whole thing back, just to change a
+  // number. For a several-GB 3DS dump, that's the actual reason both
+  // "loading a game" and "returning to the library" were slow -- nothing
+  // to do with network or the emulator core itself. Same reasoning hit
+  // getAllGames() (rendering the library grid never needed romBlob at
+  // all, but read every single one into memory regardless).
+  const DB_VERSION = 2;
   let dbPromise = null;
 
   function openNamed(name, version, onUpgrade) {
     return new Promise((resolve, reject) => {
       const req = version ? indexedDB.open(name, version) : indexedDB.open(name);
-      if (onUpgrade) req.onupgradeneeded = () => onUpgrade(req.result);
+      if (onUpgrade) {
+        req.onupgradeneeded = (e) => onUpgrade(req.result, req.transaction, e.oldVersion);
+      }
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     });
   }
 
-  function createSchema(db) {
+  function createSchema(db, upgradeTx, oldVersion) {
     if (!db.objectStoreNames.contains("games")) {
       const games = db.createObjectStore("games", { keyPath: "id" });
       games.createIndex("systemId", "systemId");
@@ -31,6 +45,32 @@ const RBDB = (() => {
     }
     if (!db.objectStoreNames.contains("settings")) {
       db.createObjectStore("settings", { keyPath: "key" });
+    }
+    if (!db.objectStoreNames.contains("romBlobs")) {
+      db.createObjectStore("romBlobs", { keyPath: "id" });
+    }
+    if (!db.objectStoreNames.contains("artBlobs")) {
+      db.createObjectStore("artBlobs", { keyPath: "id" });
+    }
+    // Only real upgrades (an existing v1 database) have inline blobs to
+    // pull back out -- a brand-new install has nothing to migrate here
+    // (oldVersion is 0), and migrateLegacy()'s own v1-shaped rows go
+    // through the same split separately, see below.
+    if (oldVersion > 0 && oldVersion < 2) {
+      const gameStore = upgradeTx.objectStore("games");
+      const romStore = upgradeTx.objectStore("romBlobs");
+      const artStore = upgradeTx.objectStore("artBlobs");
+      gameStore.openCursor().onsuccess = (e) => {
+        const cursor = e.target.result;
+        if (!cursor) return;
+        const g = cursor.value;
+        if (g.romBlob !== undefined) romStore.put({ id: g.id, blob: g.romBlob });
+        if (g.artBlob !== undefined && g.artBlob !== null) artStore.put({ id: g.id, blob: g.artBlob });
+        delete g.romBlob;
+        delete g.artBlob;
+        cursor.update(g);
+        cursor.continue();
+      };
     }
   }
 
@@ -74,19 +114,33 @@ const RBDB = (() => {
       legacyDb.close();
       return;
     }
-    const [games, states, settings] = await Promise.all([
+    const [legacyGames, states, settings] = await Promise.all([
       getAll(legacyDb, "games"),
       legacyDb.objectStoreNames.contains("states") ? getAll(legacyDb, "states") : [],
       legacyDb.objectStoreNames.contains("settings") ? getAll(legacyDb, "settings") : [],
     ]);
     legacyDb.close();
-    if (games.length === 0 && states.length === 0 && settings.length === 0) return;
+    if (legacyGames.length === 0 && states.length === 0 && settings.length === 0) return;
+
+    // "retrobanana" only ever had the old inline-blob shape (it predates
+    // the v2 split entirely) -- split it the same way the v1->v2 upgrade
+    // in createSchema does, so this path can't reintroduce inline blobs
+    // into the new split schema.
+    const games = [], romBlobs = [], artBlobs = [];
+    legacyGames.forEach((g) => {
+      const { romBlob, artBlob, ...meta } = g;
+      games.push(meta);
+      if (romBlob !== undefined) romBlobs.push({ id: g.id, blob: romBlob });
+      if (artBlob !== undefined && artBlob !== null) artBlobs.push({ id: g.id, blob: artBlob });
+    });
 
     const newDb = await openNamed(DB_NAME, DB_VERSION, createSchema);
     await Promise.all([
       putAll(newDb, "games", games),
       putAll(newDb, "states", states),
       putAll(newDb, "settings", settings),
+      putAll(newDb, "romBlobs", romBlobs),
+      putAll(newDb, "artBlobs", artBlobs),
     ]);
     newDb.close();
   }
@@ -138,26 +192,43 @@ const RBDB = (() => {
     uid,
 
     async addGame(game) {
-      return tx("games", "readwrite", (t) => {
-        t.objectStore("games").put(game);
+      const { romBlob, artBlob, ...meta } = game;
+      return tx(["games", "romBlobs", "artBlobs"], "readwrite", (t) => {
+        t.objectStore("games").put(meta);
+        if (romBlob !== undefined) t.objectStore("romBlobs").put({ id: game.id, blob: romBlob });
+        if (artBlob !== undefined && artBlob !== null) t.objectStore("artBlobs").put({ id: game.id, blob: artBlob });
         return game;
       });
     },
 
+    // Metadata-only by design -- title/favorite/lastPlayedAt/playCount/
+    // playtimeSeconds updates (every one of them except artwork changes)
+    // never touch romBlobs/artBlobs at all, so this stays fast regardless
+    // of how big the ROM is. artBlob is the one field that DOES belong to
+    // a blob store (see gameMenu.js/artwork.js's own artwork-change
+    // calls) -- routed there explicitly, not folded into the games get/put.
     async updateGame(id, patch) {
-      return tx("games", "readwrite", async (t) => {
-        const store = t.objectStore("games");
-        const existing = await reqToPromise(store.get(id));
+      const { romBlob, artBlob, ...metaPatch } = patch;
+      const stores = ["games"];
+      if (artBlob !== undefined) stores.push("artBlobs");
+      if (romBlob !== undefined) stores.push("romBlobs"); // never actually happens today, handled for correctness anyway
+      return tx(stores, "readwrite", async (t) => {
+        const gameStore = t.objectStore("games");
+        const existing = await reqToPromise(gameStore.get(id));
         if (!existing) return null;
-        const updated = Object.assign(existing, patch);
-        store.put(updated);
+        const updated = Object.assign(existing, metaPatch);
+        gameStore.put(updated);
+        if (artBlob !== undefined) t.objectStore("artBlobs").put({ id, blob: artBlob });
+        if (romBlob !== undefined) t.objectStore("romBlobs").put({ id, blob: romBlob });
         return updated;
       });
     },
 
     async deleteGame(id) {
-      return tx(["games", "states"], "readwrite", (t) => {
+      return tx(["games", "states", "romBlobs", "artBlobs"], "readwrite", (t) => {
         t.objectStore("games").delete(id);
+        t.objectStore("romBlobs").delete(id);
+        t.objectStore("artBlobs").delete(id);
         const stateIdx = t.objectStore("states").index("gameId");
         const cursorReq = stateIdx.openCursor(IDBKeyRange.only(id));
         cursorReq.onsuccess = () => {
@@ -175,11 +246,15 @@ const RBDB = (() => {
     // their save states, instead of N separate round trips.
     async deleteGames(ids) {
       if (!ids.length) return 0;
-      return tx(["games", "states"], "readwrite", (t) => {
+      return tx(["games", "states", "romBlobs", "artBlobs"], "readwrite", (t) => {
         const gameStore = t.objectStore("games");
+        const romStore = t.objectStore("romBlobs");
+        const artStore = t.objectStore("artBlobs");
         const stateIdx = t.objectStore("states").index("gameId");
         ids.forEach((id) => {
           gameStore.delete(id);
+          romStore.delete(id);
+          artStore.delete(id);
           const cursorReq = stateIdx.openCursor(IDBKeyRange.only(id));
           cursorReq.onsuccess = () => {
             const cursor = cursorReq.result;
@@ -193,14 +268,54 @@ const RBDB = (() => {
       });
     },
 
+    // Full merge (metadata + romBlob + artBlob) -- for callers that
+    // actually need to play or manage the game's files (player.js,
+    // gameMenu.js). Use getAllGames() instead for rendering the library
+    // grid, which never needs romBlob.
     async getGame(id) {
       const db = await open();
-      return reqToPromise(db.transaction("games", "readonly").objectStore("games").get(id));
+      const t = db.transaction(["games", "romBlobs", "artBlobs"], "readonly");
+      const [meta, rom, art] = await Promise.all([
+        reqToPromise(t.objectStore("games").get(id)),
+        reqToPromise(t.objectStore("romBlobs").get(id)),
+        reqToPromise(t.objectStore("artBlobs").get(id)),
+      ]);
+      if (!meta) return undefined;
+      return Object.assign({}, meta, {
+        romBlob: rom ? rom.blob : undefined,
+        artBlob: art ? art.blob : null,
+      });
     },
 
+    // Metadata + artBlob (for grid thumbnails) but deliberately NOT
+    // romBlob -- the library grid never plays a game directly, so
+    // pulling every single ROM into memory just to render a list of
+    // titles was pure waste, worse the bigger your library/ROMs get.
     async getAllGames() {
       const db = await open();
-      return reqToPromise(db.transaction("games", "readonly").objectStore("games").getAll());
+      const t = db.transaction(["games", "artBlobs"], "readonly");
+      const [metas, arts] = await Promise.all([
+        reqToPromise(t.objectStore("games").getAll()),
+        reqToPromise(t.objectStore("artBlobs").getAll()),
+      ]);
+      const artById = new Map(arts.map((a) => [a.id, a.blob]));
+      return metas.map((m) => Object.assign({}, m, { artBlob: artById.get(m.id) || null }));
+    },
+
+    // Dedicated helper for flushPlaytime (player.js) -- reading the
+    // current value via getGame() first (full merge, romBlob included)
+    // just to add a few seconds to it would reintroduce the exact
+    // multi-GB read this whole split was meant to avoid. Metadata-only,
+    // same as updateGame.
+    async incrementPlaytime(id, seconds) {
+      return tx("games", "readwrite", async (t) => {
+        const store = t.objectStore("games");
+        const existing = await reqToPromise(store.get(id));
+        if (!existing) return null;
+        existing.playtimeSeconds = (existing.playtimeSeconds || 0) + seconds;
+        store.put(existing);
+        return existing;
+      });
     },
 
     async saveState(entry) {
