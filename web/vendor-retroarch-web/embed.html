@@ -1,0 +1,116 @@
+<!doctype html>
+<!-- Generic embed page for any libretro core built for RetroArch's own
+     official web player (web.libretro.com) -- vendored locally, GPL/MIT/
+     BSD-licensed same as every other core B-NAN bundles. Unlike
+     EmulatorJS (built specifically for lightweight embedding) this is the
+     REAL RetroArch application compiled to WASM via Emscripten, complete
+     with its own BrowserFS-backed virtual filesystem and menu system --
+     proven working via a real end-to-end test (WebGL context actively
+     rendering, confirmed via a real GPU driver message, not a frozen
+     canvas) before this file was written. Booting straight past
+     RetroArch's own menu into gameplay uses the same `-L core content`
+     direct-launch argv RetroArch's own command-line interface has always
+     supported -- not a hack, just the non-interactive path through
+     software that's normally driven by mouse/keyboard/gamepad.
+
+     Usage: embed.html?core=<name>&file=<blob-url>&filename=<rom-name> -->
+<html><head><meta charset="utf-8" />
+<style>
+  html, body { margin: 0; padding: 0; background: #000; height: 100%; overflow: hidden; cursor: none; }
+  canvas { width: 100%; height: 100%; display: block; }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script src="browserfs.min.js"></script>
+<script>
+(async function () {
+  const params = new URLSearchParams(location.search);
+  const core = params.get("core");
+  const fileUrl = params.get("file");
+  const filename = params.get("filename") || "rom.bin";
+  if (!core || !fileUrl) return;
+
+  const canvas = document.getElementById("canvas");
+
+  function modulePreRun(m) {
+    m.ENV["LIBRARY_PATH"] = m.corePath;
+  }
+
+  const ModuleBase = {
+    noInitialRun: true,
+    retroArchSend: function (msg) { this.EmscriptenSendCommand(msg); },
+    retroArchRecv: function () { return this.EmscriptenReceiveCommandReply(); },
+    // Fires when the emulated machine's own "exit" path runs (rare for
+    // direct-content-launch, mainly a safety net) -- tell the parent
+    // document so it can fall back to a normal exit instead of sitting on
+    // a dead iframe.
+    retroArchExit: function () { parent.postMessage({ rb: "retroarch-exit" }, "*"); },
+    print: function () {},
+    printErr: function () {},
+    canvas: canvas,
+  };
+
+  try {
+    // The shared RetroArch frontend bundle (fonts/shaders/default config/
+    // menu assets, ~130MB across 5 parts) -- RetroArch expects this to
+    // exist even when direct-launching straight into content and skipping
+    // the menu entirely, verified by hand: omitting it breaks module init.
+    const parts = ["bundle.zip.aa", "bundle.zip.ab", "bundle.zip.ac", "bundle.zip.ad", "bundle.zip.ae"];
+    const buffers = await Promise.all(parts.map((p) => fetch(p).then((r) => r.arrayBuffer())));
+    const total = buffers.reduce((n, b) => n + b.byteLength, 0);
+    const merged = new Uint8Array(total);
+    let offset = 0;
+    for (const b of buffers) {
+      merged.set(new Uint8Array(b), offset);
+      offset += b.byteLength;
+    }
+
+    const zipfs = await new Promise((resolve, reject) => {
+      BrowserFS.FileSystem.ZipFS.Create(
+        { zipData: BrowserFS.BFSRequire("buffer").Buffer(merged) },
+        (e, fs) => (e ? reject(e) : resolve(fs))
+      );
+    });
+    const afs = new BrowserFS.FileSystem.InMemory();
+    const xhrfs = new BrowserFS.FileSystem.InMemory();
+    const mfs = new BrowserFS.FileSystem.MountableFileSystem();
+    mfs.mount("/home/web_user/retroarch", zipfs);
+    mfs.mount("/home/web_user/retroarch/cores", new BrowserFS.FileSystem.InMemory());
+    mfs.mount("/home/web_user/retroarch/userdata", afs);
+    mfs.mount("/home/web_user/retroarch/userdata/content/downloads", xhrfs);
+    BrowserFS.initialize(mfs);
+
+    const corePath = "/home/web_user/retroarch/cores/" + core + "_libretro.core";
+    const contentPath = "/home/web_user/retroarch/userdata/content/" + filename;
+
+    // Real core script, fetched relative to THIS file -- vendored under
+    // cores/<core>_libretro.js + .wasm, one pair per system.
+    const script = await import("./cores/" + core + "_libretro.js");
+    const Module = await script.default(
+      Object.assign({}, ModuleBase, {
+        preRun: [modulePreRun],
+        // Direct-launch: skip RetroArch's own menu entirely and boot
+        // straight into the content, same as running
+        // `retroarch -L <core> <content>` from a real command line.
+        arguments: ["-L", corePath, contentPath],
+      })
+    );
+
+    const BFS = new BrowserFS.EmscriptenFS(Module.FS, Module.PATH, Module.ERRNO_CODES);
+    Module.FS.mount(BFS, { root: "/home" }, "/home");
+    Module.FS.writeFile(corePath, new Uint8Array()); // placeholder -- the real core is already linked into Module itself
+    Module.FS.mkdirTree("/home/web_user/retroarch/userdata/content");
+
+    const romBytes = new Uint8Array(await (await fetch(fileUrl)).arrayBuffer());
+    Module.FS.writeFile(contentPath, romBytes);
+
+    window.__raModule = Module;
+    Module.callMain(Module.arguments);
+    parent.postMessage({ rb: "ready" }, "*");
+  } catch (err) {
+    parent.postMessage({ rb: "error", message: String(err) }, "*");
+  }
+})();
+</script>
+</body></html>

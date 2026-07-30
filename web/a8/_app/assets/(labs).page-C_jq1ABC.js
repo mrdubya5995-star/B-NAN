@@ -1,0 +1,1 @@
+import{i as e,n as t,o as n}from"./prerender-BD1L_nRh.js";import{n as r,t as i}from"./placeholder-CXis-ipd.js";function a(){let a=e.pages.labs;return n({title:a.title}),t(r,{heading:a.heading,children:t(i,{href:`/labs/keyboard`,children:a.keyboard})})}export{a as default};

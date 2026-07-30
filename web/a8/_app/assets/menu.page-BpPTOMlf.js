@@ -1,0 +1,1 @@
+import{i as e,n as t}from"./prerender-BD1L_nRh.js";import{n}from"./emu-context-7qJYdbo4.js";import{n as r}from"./sidebar-PxkaljYB.js";import{t as i}from"./panel-frame-BsjI2o1d.js";function a(){let{host:a,openPalette:o}=n();return t(i,{title:e.sidebar.titleMenu,children:t(r,{host:a,onOpenPalette:o})})}export{a as default};

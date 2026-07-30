@@ -1,0 +1,162 @@
+{
+  "_comment": "Native (non-browser) desktop emulators B-NAN can bundle into its .dmg/.exe/.AppImage builds. Unlike the WASM cores in web/vendor-emulatorjs/, these are full native binaries and can't practically be committed to this project the same way -- they're fetched once at build time by tools/fetch-native-emulators.js and then bundled into every installer via electron-builder's extraResources, so the SHIPPED APP still makes zero runtime network calls for them, same guarantee as the browser cores. 'github' entries resolve their download by asking the GitHub Releases API for that repo's latest release at fetch time (not a guessed/hardcoded URL) and pattern-matching the asset filename per OS. 'manual' entries can't be resolved that way (see notes) and expect a human to drop the archive into native/manual-drop/<id>/ before running the fetch script.",
+
+  "emulators": {
+    "dolphin": {
+      "name": "Dolphin",
+      "systems": ["gamecube_wii"],
+      "license": "GPL-2.0-or-later",
+      "homepage": "https://dolphin-emu.org/",
+      "source": "manual",
+      "manualNote": "Dolphin does not publish official stable builds via GitHub Releases (verified: dolphin-emu/dolphin has none), and dolphin-emu.org's download page returns 403 to non-browser/datacenter requests (verified by hand, both via curl and a full headless-browser session). Download the current stable build yourself from https://dolphin-emu.org/download/ on a real machine/browser and place the archive at native/manual-drop/dolphin/ before running the fetch script.",
+      "platforms": {
+        "win32": { "exeRelPath": "Dolphin.exe" },
+        "darwin": { "exeRelPath": "Dolphin.app/Contents/MacOS/Dolphin" },
+        "linux": { "exeRelPath": "dolphin-emu" }
+      },
+      "args": ["-b", "-e", "{romPath}"]
+    },
+    "pcsx2": {
+      "name": "PCSX2",
+      "systems": ["playstation2"],
+      "license": "GPL-3.0-or-later",
+      "homepage": "https://pcsx2.net/",
+      "source": "github",
+      "repo": "PCSX2/pcsx2",
+      "_verifiedAgainst": "v2.6.3, live `npm run fetch:native` run on 2026-07-28 -- real asset list was: pcsx2-v2.6.3-linux-appimage-x64-Qt.AppImage, pcsx2-v2.6.3-linux-flatpak-x64-Qt.flatpak, pcsx2-v2.6.3-macos-Qt.tar.xz, PCSX2-v2.6.3-windows-x64-installer.exe, pcsx2-v2.6.3-windows-x64-Qt-symbols.7z, pcsx2-v2.6.3-windows-x64-Qt.7z",
+      "assetPatterns": {
+        "win32": ["windows-x64-qt.7z"],
+        "darwin": ["macos", ".tar.xz"],
+        "linux": ["linux-appimage", ".appimage"]
+      },
+      "platforms": {
+        "win32": { "exeRelPath": "pcsx2-qt.exe" },
+        "darwin": { "exeRelPath": "PCSX2.app/Contents/MacOS/PCSX2" },
+        "linux": { "exeRelPath": "app.AppImage" }
+      },
+      "args": ["-batch", "{romPath}"]
+    },
+    "rpcs3": {
+      "name": "RPCS3",
+      "systems": ["ps3"],
+      "license": "GPL-2.0-or-later",
+      "homepage": "https://rpcs3.net/",
+      "source": "github",
+      "repo": "RPCS3/rpcs3-binaries-win",
+      "repoPerPlatform": {
+        "win32": "RPCS3/rpcs3-binaries-win",
+        "linux": "RPCS3/rpcs3-binaries-linux",
+        "darwin": "RPCS3/rpcs3-binaries-mac"
+      },
+      "note": "RPCS3's actual emulator source lives at RPCS3/rpcs3, but it publishes no binaries itself -- each OS's builds live in their own separate *-binaries-<os> repo, hence repoPerPlatform above instead of one shared repo.",
+      "_verifiedAgainst": "build-d3abc6ee..., live API check on 2026-07-28 -- real asset lists: win = rpcs3-...win64_msvc.7z (+ .sha256 checksum file, excluded below), linux = rpcs3-...linux64.AppImage, mac = rpcs3-...macos.7z. An earlier version of this manifest wrongly claimed RPCS3 has no macOS build at all -- it does, just via this separate repo.",
+      "assetPatterns": {
+        "win32": [".7z"],
+        "darwin": [".7z"],
+        "linux": [".appimage"]
+      },
+      "assetExclude": {
+        "win32": [".sha256"],
+        "darwin": [".sha256"]
+      },
+      "platforms": {
+        "win32": { "exeRelPath": "rpcs3.exe" },
+        "darwin": { "exeRelPath": "RPCS3.app/Contents/MacOS/rpcs3" },
+        "linux": { "exeRelPath": "app.AppImage" }
+      },
+      "args": ["--no-gui", "{romPath}"]
+    },
+    "cemu": {
+      "name": "Cemu",
+      "systems": ["wiiu"],
+      "license": "MPL-2.0",
+      "homepage": "https://cemu.info/",
+      "source": "github",
+      "repo": "cemu-project/Cemu",
+      "_verifiedAgainst": "v2.6, live API check on 2026-07-28 -- real asset list: cemu-2.6-macos-12-x64.dmg, cemu-2.6-ubuntu-22.04-x64.zip, cemu-2.6-windows-x64.zip, Cemu-2.6-x86_64.AppImage. An earlier version of this manifest wrongly claimed Cemu has no macOS build -- it does.",
+      "assetPatterns": {
+        "win32": ["windows-x64", ".zip"],
+        "darwin": ["macos", ".dmg"],
+        "linux": [".appimage"]
+      },
+      "platforms": {
+        "win32": { "exeRelPath": "Cemu.exe" },
+        "darwin": { "exeRelPath": "Cemu.app/Contents/MacOS/Cemu" },
+        "linux": { "exeRelPath": "app.AppImage" }
+      },
+      "args": ["-g", "{romPath}"]
+    },
+    "xemu": {
+      "name": "xemu",
+      "systems": ["xbox"],
+      "license": "GPL-2.0-or-later",
+      "homepage": "https://xemu.app/",
+      "source": "github",
+      "repo": "xemu-project/xemu",
+      "_verifiedAgainst": "v0.8.136, live `npm run fetch:native` run on 2026-07-28 -- real asset list included regular/-dbg-/-pdb variants for every platform, e.g. xemu-0.8.136-windows-x86_64.zip alongside xemu-0.8.136-dbg-windows-x86_64.zip and xemu-0.8.136-windows-x86_64-pdb.zip -- assetExclude below is what tells them apart, not assetPatterns alone.",
+      "assetPatterns": {
+        "win32": ["windows-x86_64", ".zip"],
+        "darwin": ["macos-universal", ".zip"],
+        "linux": ["x86_64", ".appimage"]
+      },
+      "assetExclude": {
+        "win32": ["dbg", "pdb"],
+        "darwin": ["dbg", "unsigned"],
+        "linux": ["dbg"]
+      },
+      "platforms": {
+        "win32": { "exeRelPath": "xemu.exe" },
+        "darwin": { "exeRelPath": "xemu.app/Contents/MacOS/xemu" },
+        "linux": { "exeRelPath": "app.AppImage" }
+      },
+      "args": ["-dvd_path", "{romPath}"],
+      "note": "xemu additionally requires the player's own Xbox BIOS/HDD image, configured on first run -- B-NAN does not provide or fetch these, same 'bring your own dumps' policy as ROMs."
+    },
+    "flycast": {
+      "name": "Flycast",
+      "systems": ["dreamcast"],
+      "license": "GPL-2.0-or-later",
+      "homepage": "https://flyinghead.github.io/flycast-emulator/",
+      "source": "github",
+      "repo": "flyinghead/flycast",
+      "_verifiedAgainst": "v2.6, live `npm run fetch:native` run on 2026-07-28 -- real asset list was: flycast-2.6.apk, flycast-2.6.appx, flycast-2.6.nro, flycast-macOS-2.6.zip, flycast-win64-2.6.zip, flycast-x86_64.AppImage",
+      "assetPatterns": {
+        "win32": ["win64", ".zip"],
+        "darwin": ["macos", ".zip"],
+        "linux": [".appimage"]
+      },
+      "platforms": {
+        "win32": { "exeRelPath": "flycast.exe" },
+        "darwin": { "exeRelPath": "Flycast.app/Contents/MacOS/flycast" },
+        "linux": { "exeRelPath": "app.AppImage" }
+      },
+      "args": ["{romPath}"]
+    },
+    "vita3k": {
+      "name": "Vita3K",
+      "systems": ["psvita"],
+      "license": "GPL-2.0-or-later (bundled third-party components under their own licenses -- see the project's own LICENSE file)",
+      "homepage": "https://vita3k.org/",
+      "source": "github",
+      "repo": "Vita3K/Vita3K",
+      "_verifiedAgainst": "the 'continuous' rolling release, live API check on 2026-07-28 -- real asset list: android-latest.apk, macos-arm64-latest.dmg, macos-latest.dmg, ubuntu-aarch64-latest.zip, ubuntu-latest.zip, Vita3K-aarch64.AppImage(.zsync), Vita3K-x86_64.AppImage(.zsync), windows-arm64-latest.zip, windows-latest.zip. An earlier version of this manifest wrongly claimed Vita3K's macOS build was discontinued -- it's still there, just renamed. Picks the x64/x86_64 build everywhere, not arm64, to match how this project's own Electron builds default (see package.json's mac target, which does build both arches, but this fetch script doesn't split by arch yet -- x64 runs fine on Apple Silicon too via Rosetta).",
+      "assetPatterns": {
+        "win32": ["windows", ".zip"],
+        "darwin": ["macos", ".dmg"],
+        "linux": ["x86_64", ".appimage"]
+      },
+      "assetExclude": {
+        "win32": ["arm64"],
+        "darwin": ["arm64"],
+        "linux": [".zsync"]
+      },
+      "platforms": {
+        "win32": { "exeRelPath": "Vita3K.exe" },
+        "darwin": { "exeRelPath": "Vita3K.app/Contents/MacOS/Vita3K" },
+        "linux": { "exeRelPath": "app.AppImage" }
+      },
+      "args": ["-r", "{romPath}"],
+      "note": "Vita3K additionally requires the player's own PS Vita firmware, configured on first run -- not provided or fetched by B-NAN."
+    }
+  }
+}

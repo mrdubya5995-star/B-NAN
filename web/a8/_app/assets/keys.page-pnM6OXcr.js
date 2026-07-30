@@ -1,0 +1,1 @@
+import{n as e}from"./prerender-BD1L_nRh.js";import{n as t}from"./emu-context-7qJYdbo4.js";import{t as n}from"./settings-frame-CfyS2Ga7.js";import{t as r}from"./keys-D2Zep5WJ.js";function i(){let{host:i}=t();return e(n,{host:i,active:`shortcuts`,children:e(r,{host:i})})}export{i as default};

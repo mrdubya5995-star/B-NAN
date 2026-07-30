@@ -1,0 +1,35 @@
+<!doctype html>
+<!-- B-NAN embed wrapper around JSSpeccy 3 (unmodified, vendored from
+     https://github.com/gasman/jsspeccy3, GPL-3.0). Not part of upstream --
+     this file is B-NAN's own, just reads ?file=<blob-url> off its own
+     query string and hands it to JSSpeccy's documented openUrl option. -->
+<html>
+<head>
+<meta charset="utf-8" />
+<title>ZX Spectrum</title>
+<script src="jsspeccy/jsspeccy.js"></script>
+<style>
+  html, body { margin: 0; padding: 0; background: #000; height: 100%; overflow: hidden; }
+  #jsspeccy { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+</style>
+</head>
+<body>
+<div id="jsspeccy"></div>
+<script>
+  const params = new URLSearchParams(location.search);
+  const fileUrl = params.get("file");
+  window.emu = JSSpeccy(document.getElementById("jsspeccy"), {
+    zoom: 3,
+    autoStart: true,
+    autoLoadTapes: true,
+    openUrl: fileUrl || undefined,
+  });
+  window.addEventListener("message", (e) => {
+    if (e.data === "bnan:fullscreen" && window.emu) window.emu.enterFullscreen();
+  });
+  if (window.emu && window.emu.onReady) {
+    window.emu.onReady(() => parent.postMessage({ rb: "started" }, "*"));
+  }
+</script>
+</body>
+</html>

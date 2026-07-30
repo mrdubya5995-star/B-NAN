@@ -1,0 +1,15 @@
+{
+  "name": "B-NAN",
+  "short_name": "B-NAN",
+  "description": "A friendly little multi-system game emulator.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#fff8e1",
+  "theme_color": "#fff1c9",
+  "orientation": "any",
+  "icons": [
+    { "src": "assets/icons/banana-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icons/banana-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "assets/icons/banana-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

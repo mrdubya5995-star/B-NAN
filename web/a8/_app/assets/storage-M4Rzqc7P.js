@@ -1,0 +1,1 @@
+function e(...e){return[`a8`,...e].join(`.`)}export{e as t};

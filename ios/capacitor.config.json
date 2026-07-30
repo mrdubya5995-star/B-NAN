@@ -1,0 +1,13 @@
+{
+  "appId": "com.bnan.app",
+  "appName": "B-NAN",
+  "webDir": "www",
+  "backgroundColor": "#FFF8E1",
+  "ios": {
+    "contentInset": "always",
+    "backgroundColor": "#FFF8E1"
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

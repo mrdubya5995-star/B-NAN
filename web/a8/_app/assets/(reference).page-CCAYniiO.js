@@ -1,0 +1,1 @@
+import{i as e,n as t,o as n}from"./prerender-BD1L_nRh.js";import{n as r,t as i}from"./placeholder-CXis-ipd.js";function a(){let a=e.pages.reference;return n({title:a.title}),t(r,{heading:a.heading,children:t(i,{href:`/a8/reference/atascii-and-keyboard`,children:a.atasciiKeyboard})})}export{a as default};

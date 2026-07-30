@@ -1,0 +1,1290 @@
+/* B-NAN — soft yellow, hand-made feeling. Just a warm little corner for
+   old games. (Two deliberate, explicitly-requested exceptions live here
+   now: glass/translucent buttons in the top bar and library controls,
+   and a neon-yellow highlight on the active Recents card -- both were
+   asked for directly, not drift from the rest of the file's own rules.) */
+
+/* Display font -- headings and subheadings only (h1/h2/h3; everything
+   else, including buttons/labels/badges/titles, is plain system sans --
+   see body below). Bundled locally (OFL-licensed, web/assets/fonts/)
+   rather than a Google Fonts <link>, so it doesn't add a network
+   dependency. Notable (Google Fonts), SIL Open Font License 1.1. */
+@font-face {
+  font-family: "NotableLocal";
+  src: url("../assets/fonts/Notable.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+
+:root {
+  /* `--paper` is the clean neutral canvas the main content area sits on --
+     every UI-design source on "clean yellow UI" agrees on the same point:
+     yellow reads as clean when it's an ACCENT against a neutral field,
+     not when it's the fill color for nearly every surface. Previously
+     the topbar/view background was --peel-100 (a visible yellow tint),
+     so cards, buttons, and active states were all fighting the same
+     background for attention instead of standing out against it. The
+     sidebar keeps its warm gradient on purpose -- it's brand chrome, not
+     content -- but the actual working area (topbar + everything in it)
+     now sits on this near-white paper instead. */
+  --paper: #fffefb;
+  --peel-50: #fffdf6;
+  --peel-100: #fff8e1;
+  --peel-150: #fff1c9;
+  --peel-200: #ffe9a8;
+  --peel-300: #ffdd7a;
+  --peel-400: #f3c94d;
+  --peel-500: #e0ab2a;
+  --ink-700: #5b4a22;
+  --ink-800: #4a3b19;
+  --ink-900: #382c11;
+  --brown-600: #8a5a2b;
+  --leaf-500: #7a9a4a;
+  --leaf-600: #5f7d37;
+  --berry-600: #a94f30;
+  /* This one IS genuinely neon on purpose -- the highlight ring around
+     whichever Recents card is currently active, explicitly requested to
+     stand out sharply against the warm palette rather than blend in. */
+  --neon-yellow: #f4ff2e;
+  --neon-yellow-glow: rgba(244, 255, 46, 0.55);
+  --shadow-warm: 250, 190, 90;
+  --radius-a: 14px 10px 16px 9px;
+  --radius-b: 10px 16px 9px 14px;
+  --radius-c: 12px;
+  /* Actual rendered height of .app-topbar's content (46px brand logo +
+     12px padding top/bottom) -- shared by every place that needs to
+     individually clear the now-floating topbar (.hero-recent,
+     .full-library-header when there's no hero above it, #view-settings),
+     so they all stay in sync if the topbar's size ever changes. */
+  --topbar-h: 70px;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+  background: var(--paper);
+  color: var(--ink-800);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Headings and subheadings only -- buttons, labels, badges, chips, and
+   game titles all stay on the plain sans body font above. */
+h1, h2, h3 {
+  font-family: "NotableLocal", -apple-system, "Segoe UI", system-ui, sans-serif;
+}
+
+/* a faint hand-felt paper grain, so the yellow doesn't look like a flat
+   solid-fill AI mockup */
+.grain {
+  /* No mix-blend-mode here on purpose -- it used to force the browser to
+     recomposite this full-viewport layer against whatever was changing
+     underneath it on every single frame (library scrolling, gameplay),
+     which is genuinely expensive and was the direct cause of real,
+     reported scroll/playback stutter. A plain translucent overlay (no
+     blend mode) composites as a static, GPU-cached layer instead --
+     visually almost identical at this low an opacity, but none of the
+     per-frame recompute cost. */
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 500;
+  opacity: 0.32;
+  background-image:
+    radial-gradient(rgba(139, 105, 20, 0.05) 1px, transparent 1px),
+    radial-gradient(rgba(139, 105, 20, 0.04) 1px, transparent 1px);
+  background-size: 3px 3px, 7px 7px;
+  background-position: 0 0, 2px 3px;
+}
+
+a { color: inherit; }
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--peel-400);
+  border-radius: 8px;
+  border: 2px solid var(--peel-100);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--peel-500); }
+
+/* ---------- app shell ---------- */
+
+#app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+/* While a game is open, the library behind it is fully covered by the
+   fixed-position player view but still technically present in the DOM --
+   modern browsers are usually smart enough to skip rendering fully
+   occluded content on their own, but this removes any doubt instead of
+   relying on that: it tells the browser outright there is zero reason to
+   spend any layout/paint/style time on the hidden library while playing. */
+#app.player-active { content-visibility: hidden; }
+
+/* ---------- top bar (custom -- the window itself is frame:false under
+   Electron, see electron/main.js, so this IS the title bar) ---------- */
+
+.app-topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 250;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 18px;
+  background: transparent;
+  /* No bar/gradient behind this anymore -- floats directly over whatever
+     the current view is showing (the Recents hero's own game art, most
+     visibly -- see .hero-recent's negative margin below, which pulls its
+     background up underneath this) instead of claiming its own row and
+     pushing everything else down. Every button in here needs its own
+     background to stay legible over arbitrary art now that there's no
+     shared bar behind them -- see .topbar-brand/.window-controls below,
+     and .btn.primary.pill/.topbar-avatar which already had one. */
+}
+
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: none;
+  background: rgba(255, 253, 246, 0.35);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 4px 14px 4px 4px;
+  border-radius: var(--radius-b);
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.12s ease;
+  /* Custom-titlebar drag regions are opt-IN here (see .topbar-spacer),
+     not opt-out -- a previous "whole bar drags, children opt out via
+     no-drag" version of this had exactly this button (the "go home"
+     logo) reported as unclickable in the real desktop app: a real click
+     with any tiny mouse movement can get swallowed as a window-drag
+     gesture if a no-drag override doesn't fully take, which is a known
+     fragile pattern in Electron. Nothing needs to opt out if nothing
+     drags by default. */
+}
+.topbar-brand:hover { transform: scale(1.03); background: rgba(255, 253, 246, 0.58); }
+.topbar-brand:active { transform: scale(0.97); }
+.topbar-brand img { width: 46px; height: 46px; }
+.topbar-brand-name {
+  font-weight: 800;
+  font-size: 25px;
+  letter-spacing: 0.2px;
+  color: var(--ink-900);
+}
+
+.topbar-spacer {
+  flex: 1;
+  align-self: stretch;
+  -webkit-app-region: drag;
+}
+
+/* "Glass": translucent + backdrop-blur instead of a solid fill and a
+   hairline border, so whatever's behind (the topbar gradient, or the
+   hero's own ambient art once scrolled up under it) visibly blends
+   through rather than being fully hidden by an opaque button. */
+.btn.primary.pill {
+  border-radius: 999px;
+  background: rgba(255, 253, 246, 0.4);
+  border: none;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  color: var(--ink-900);
+  box-shadow: 0 2px 10px rgba(74, 59, 25, 0.12);
+}
+.btn.primary.pill:hover { background: rgba(255, 253, 246, 0.62); }
+.btn.primary.pill .btn-ico { stroke: var(--ink-900); }
+
+.topbar-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 253, 246, 0.35);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.topbar-avatar svg { width: 100%; height: 100%; fill: none; stroke: var(--brown-600); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.topbar-avatar:hover { transform: scale(1.1) rotate(20deg); background: rgba(255, 253, 246, 0.58); }
+
+.window-controls {
+  display: flex;
+  gap: 2px;
+  margin-left: 4px;
+  background: rgba(255, 253, 246, 0.35);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 2px;
+  border-radius: 999px;
+}
+.window-controls.hidden { display: none; }
+.win-btn {
+  width: 32px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.win-btn .btn-ico { width: 12px; height: 12px; stroke: var(--ink-800); }
+.win-btn:hover { background: var(--peel-300); }
+.win-btn.win-close:hover { background: #e3684a; }
+.win-btn.win-close:hover .btn-ico { stroke: #fff; }
+
+/* ---------- main area ---------- */
+
+.app-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  /* No top padding here on purpose -- this (and #view-library/.view
+     inside it) is a scroll container, and a scroll container clips its
+     own content to its own box. A negative margin on a descendant trying
+     to bleed back up past reserved padding gets clipped at THIS box's
+     edge (or #view-library's, whichever is closer), never actually
+     reaching the true viewport top -- confirmed by hand, not a guess:
+     .hero-recent used exactly that trick and its background visibly cut
+     off partway down instead of touching the top. Space for the floating
+     topbar is reserved individually by whatever content actually needs
+     to clear it instead -- see .full-library-header and #view-settings,
+     both below -- so nothing here needs to un-reserve it for itself. */
+}
+
+.section-heading {
+  font-size: 19px;
+  margin: 0 0 12px;
+  color: var(--ink-900);
+}
+
+/* ---------- Recents hero ---------- */
+
+.hero-recent {
+  position: relative;
+  overflow: hidden;
+  /* Genuinely starts at the very top now (no negative-margin fight with
+     an ancestor's own scroll clipping -- see .app-main's comment) --
+     the "Recents" heading itself needs to clear the floating topbar
+     buttons, so that padding-top is real, not undone/re-added like the
+     old approach. hero-ambient-bg (below) is what's meant to actually
+     touch the top, via its own negative inset, not this section's box. */
+  padding: calc(22px + var(--topbar-h)) 32px 6px;
+}
+.hero-recent.hidden { display: none; }
+.hero-recent > .section-heading, .hero-recent > .hero-row-wrap { position: relative; z-index: 1; }
+
+/* A backdrop of whatever game is currently active (hover/focus) --
+   matches the reference's own ambient art behind the hero section.
+   Noticeably less blurred and more zoomed than an earlier pass at this
+   (which read as "way too blurry") -- background-size is pushed well
+   past a bare "cover" specifically so tall/portrait box art still fills
+   the whole wide banner edge-to-edge instead of just barely covering it. */
+.hero-ambient-bg {
+  position: absolute;
+  inset: -4%;
+  z-index: 0;
+  /* Plain `cover`, not a fixed extra zoom on top of it -- `cover` on its
+     own already fills a wide short banner completely for a TALL/portrait
+     image (which is most box art), scaling until the image's *width*
+     matches the container; stacking a flat 180% on top of that over-
+     zoomed EVERY image regardless of its shape, including wide/landscape
+     ones that never needed help, to the point the picture was barely
+     recognizable. `cover` alone already does exactly what was asked --
+     tall art filling the banner -- without punishing every other shape. */
+  background-size: cover;
+  background-position: center;
+  filter: blur(5px) saturate(1.15);
+  opacity: 0;
+  transition: opacity 0.35s ease, background-image 0.15s ease;
+  pointer-events: none;
+}
+/* Full strength, not a partial blend with the paper color showing
+   through -- at 0.7 the top of the image (exactly the area meant to
+   fill the space behind the floating topbar now) still read as washed
+   out/whitish, since 30% of whatever's behind it (the paper background)
+   was still bleeding through everywhere, not just in the ::after fade
+   zone below. The bottom fade to solid paper is handled entirely by
+   ::after now. */
+.hero-ambient-bg.visible { opacity: 1; }
+/* This fade used to go light-at-the-top -> solid-paper-at-the-bottom, to
+   blend into the old solid topbar sitting right above it. Now that the
+   topbar is a transparent floating overlay (see .app-topbar) instead of a
+   solid bar, that top edge is exactly the space the game art is supposed
+   to fill -- so the fade is flipped: fully visible art at the top, fading
+   to solid paper only near the bottom, to blend into the Full Library
+   section below instead. */
+.hero-ambient-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255, 253, 246, 0) 0%, rgba(255, 253, 246, 0.15) 55%, var(--paper) 96%);
+}
+
+.hero-row-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hero-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  /* Generous padding on every side: the active item scales up well past
+     its resting size (transform:scale from its own center, see
+     .hero-item.active below), so it needs real breathing room in BOTH
+     directions -- vertically because a horizontally-scrolling row's
+     overflow-y is forced to `auto` by the same axis it shares
+     overflow-x with (a real CSS quirk, not overridable by just setting
+     overflow-y:visible), and horizontally because the very first item
+     has nowhere to grow into on its left but open space -- with too
+     little of it (an earlier pass here had just 4px) the active first
+     card visibly clipped off the left edge of the screen, found by
+     actually looking at a screenshot, not just checking the class
+     applied. A later pass measured the actual overflow with real
+     getBoundingClientRect numbers instead of eyeballing a screenshot
+     crop (which had been hiding a real ~25px top+bottom clip): a
+     138px-wide card, once its title/system/playtime text is included,
+     needs about 76px of vertical padding at this scale, not 34px. */
+  padding: 76px 70px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+}
+
+.hero-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.hero-scroll-hint {
+  flex-shrink: 0;
+  align-self: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 253, 246, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hero-scroll-hint.hidden { display: none; }
+.hero-scroll-hint:hover { background: rgba(255, 253, 246, 0.75); }
+.hero-scroll-hint .btn-ico { stroke: var(--brown-600); }
+
+/* Every hero card starts at this same small size -- whichever one is
+   .active (hovered, or moved to with arrow keys/Tab -- see
+   wireHeroRowInteractivity in ui.js) is the only one that gets big,
+   with a neon glow around it; everything else in the row visibly
+   recedes at the same time, not just "stays the same size while one
+   grows". z-index keeps the active card from being clipped by its
+   now-smaller, still-adjacent neighbors. */
+.hero-item {
+  width: 138px;
+  flex-shrink: 0;
+  transform: scale(0.92);
+  opacity: 0.72;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.22s ease, box-shadow 0.22s ease;
+}
+/* .game-card.hero-item.active (3 classes), not just .hero-item.active (2)
+   -- needs to outrank .game-card:hover's own transform/box-shadow (also 2
+   classes, same specificity) since a real mouse hover and the .active
+   class are frequently true at the same time; without the extra
+   specificity, source order alone decided the winner and .game-card:hover
+   (defined later in this file) was silently overriding the neon glow
+   whenever you were actually pointed at the card with a mouse -- found by
+   testing hover directly, not just checking the class was applied. */
+.game-card.hero-item.active {
+  transform: scale(1.55);
+  opacity: 1;
+  z-index: 6;
+  box-shadow: 0 0 0 3px var(--neon-yellow), 0 0 32px 6px var(--neon-yellow-glow), 0 20px 30px -10px rgba(74, 59, 25, 0.4);
+}
+.hero-item .hero-playtime {
+  font-size: 11px;
+  color: var(--ink-700);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.hero-item.active .hero-playtime { opacity: 0.8; }
+
+/* ---------- Full library header ---------- */
+
+.full-library-header {
+  padding: 22px 32px 0;
+}
+/* Only matters when there's no Recents hero above it to already clear the
+   floating topbar (an empty/no-recents library) -- with a hero, this
+   sits well clear of the topbar already and doesn't need its own
+   reservation on top of that. */
+.hero-recent.hidden + .full-library-header {
+  padding-top: calc(22px + var(--topbar-h));
+}
+.full-library-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+/* Glass, scoped to just this row's Select/Select All/Cancel/Delete
+   cluster -- not a global .btn override, since .btn.ghost/.btn.danger
+   are also the same classes used inside modals and the pause overlay,
+   which weren't part of this and would look wrong turned translucent
+   over a solid backdrop instead of the library's own background. */
+.full-library-controls .btn.ghost,
+.full-library-controls .btn.danger {
+  border: none;
+}
+.full-library-controls .btn.ghost { background: rgba(255, 253, 246, 0.55); }
+.full-library-controls .btn.ghost:hover { background: rgba(255, 253, 246, 0.6); }
+.full-library-controls .btn.danger { background: rgba(251, 224, 214, 0.55); }
+.full-library-controls .btn.danger:hover { background: rgba(251, 224, 214, 0.75); }
+
+.sortby-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-700);
+}
+.sortby-wrap select {
+  padding: 7px 10px;
+  border-radius: var(--radius-b);
+  border: none;
+  background: rgba(255, 253, 246, 0.65);
+  font-family: inherit;
+  font-size: 12.5px;
+  color: var(--ink-900);
+}
+
+.display-toggle {
+  display: flex;
+  border-radius: var(--radius-b);
+  overflow: hidden;
+  background: rgba(255, 253, 246, 0.5);
+}
+.display-toggle-btn {
+  width: 32px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.display-toggle-btn .btn-ico { width: 14px; height: 14px; }
+.display-toggle-btn.active { background: rgba(243, 201, 77, 0.55); }
+.display-toggle-btn.active .btn-ico { stroke: var(--ink-900); }
+.display-toggle-btn:not(.active):hover { background: rgba(255, 233, 168, 0.4); }
+
+.topbar-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.topbar-chips:empty { display: none; }
+
+/* Glass look (translucent, no border) but WITHOUT backdrop-filter blur --
+   this and every other control in the scrolling library area used to
+   have it too, same as the topbar's own buttons (.btn.primary.pill)
+   still do. backdrop-filter forces a live re-sample of whatever's behind
+   the element on literally every scroll frame; stacked across six-plus
+   controls all inside the scrolling area, that was the real, findable
+   cause of a report that scrolling had become extremely laggy with even
+   a single game in the library. The topbar's own glass buttons keep
+   their blur since that bar never scrolls, so its one-time cost is fine. */
+.console-chip {
+  flex-shrink: 0;
+  border: none;
+  background: rgba(255, 253, 246, 0.6);
+  color: var(--ink-800);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.12s ease;
+}
+.console-chip:hover { background: rgba(255, 253, 246, 0.65); transform: scale(1.06); }
+.console-chip.active {
+  background: rgba(243, 201, 77, 0.6);
+  color: var(--ink-900);
+}
+
+.search-wrap {
+  flex: 1;
+  max-width: 420px;
+  position: relative;
+}
+.search-wrap input {
+  width: 100%;
+  padding: 9px 14px 9px 34px;
+  border-radius: var(--radius-a);
+  border: none;
+  background: rgba(255, 253, 246, 0.65);
+  color: var(--ink-900);
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+}
+.search-wrap input:focus { background: rgba(255, 253, 246, 0.7); }
+/* A previous hand-drawn magnifying glass built from ::before/::after
+   pseudo-elements (a small circle touching a short diagonal tail) read
+   as the letter "Q" rather than a magnifying glass -- the tail sat right
+   against the circle's edge instead of clearly outside it. Replaced with
+   a real SVG icon from the same sprite sheet every other icon in the app
+   already uses, which doesn't have that ambiguity. */
+.search-ico {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: var(--ink-700);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.btn {
+  border-radius: var(--radius-b);
+  border: 2px solid var(--peel-300);
+  background: var(--peel-200);
+  color: var(--ink-900);
+  padding: 9px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.12s ease, box-shadow 0.12s ease;
+}
+.btn-ico {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  fill: none;
+  stroke: var(--brown-600);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.btn.primary .btn-ico { stroke: var(--ink-900); }
+.btn:hover { background: var(--peel-300); transform: scale(1.06); box-shadow: 0 3px 0 0 rgba(var(--shadow-warm), 0.3); }
+.btn:active { transform: scale(0.95); box-shadow: none; }
+.btn[disabled]:hover { transform: none; box-shadow: none; }
+.btn.primary {
+  background: var(--peel-400);
+  border-color: var(--peel-500);
+  color: var(--ink-900);
+}
+.btn.primary:hover { background: var(--peel-500); }
+.btn.ghost {
+  background: transparent;
+  border-color: transparent;
+}
+.btn.ghost:hover { background: var(--peel-200); }
+.btn.danger { background: #fbe0d6; border-color: #e3a68c; color: var(--berry-600); }
+.btn.danger:hover { background: #f7cdb9; }
+.btn.small { padding: 6px 11px; font-size: 12.5px; }
+.btn[disabled] { opacity: 0.45; cursor: default; pointer-events: none; }
+
+.view {
+  flex: 1;
+  overflow-y: auto;
+}
+.view[hidden] { display: none; }
+
+/* Settings kept its own old single-section layout (no hero/full-library
+   sub-sections to hand padding off to), so it still needs it directly --
+   including clearing the floating topbar itself now, since #view-settings
+   has nothing above it to do that the way the library's hero/header do. */
+#view-settings {
+  padding: calc(26px + var(--topbar-h)) 32px 44px;
+}
+
+.view-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.view-heading h1 {
+  font-size: 25px;
+  margin: 0;
+  color: var(--ink-900);
+}
+.view-sub {
+  color: var(--ink-700);
+  opacity: 0.75;
+  font-size: 13px;
+  margin: 0 0 18px;
+}
+
+/* ---------- game grid / list ---------- */
+
+.game-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 20px;
+  padding: 14px 32px 44px;
+}
+.game-grid.hidden { display: none; }
+
+.game-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 32px 44px;
+}
+.game-list.hidden { display: none; }
+
+.game-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--peel-50);
+  box-shadow: 0 1px 3px rgba(139, 105, 20, 0.08);
+  border-radius: var(--radius-b);
+  padding: 8px 12px;
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+}
+.game-row:hover {
+  transform: translateY(-4px) scale(1.03);
+  box-shadow: 0 16px 22px -10px rgba(74, 59, 25, 0.35);
+  z-index: 5;
+}
+.game-row.selected { box-shadow: 0 0 0 3px var(--peel-500); }
+.row-art {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--peel-200), var(--peel-300));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.row-art img { width: 100%; height: 100%; object-fit: cover; }
+.row-art .art-code { font-weight: 700; font-size: 10.5px; color: var(--ink-800); opacity: 0.6; }
+.row-info { flex: 1; min-width: 0; }
+.row-info .title { font-size: 13.5px; font-weight: 700; color: var(--ink-900); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row-info .system { font-size: 11px; color: var(--ink-700); opacity: 0.75; }
+.row-playtime {
+  flex-shrink: 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--brown-600);
+  background: var(--peel-200);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.row-overlay {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+}
+.row-overlay .fav-toggle, .row-overlay .delete-toggle { position: static; opacity: 1; background: transparent; }
+.row-overlay .delete-toggle { opacity: 0.5; }
+.row-overlay .select-toggle { position: static; }
+
+/* Native focus (Tab, or a click) on any game item -- grid card, list row,
+   or hero card alike -- shown consistently so the bottom bar's "Play"
+   hint has something visibly real to act on. No spatial/d-pad navigation
+   moves this focus yet, only Tab and click do (see ui.js). */
+.game-item:focus-visible {
+  outline: 3px solid var(--peel-500);
+  outline-offset: 2px;
+}
+
+.game-card {
+  background: var(--peel-50);
+  /* No border -- a soft shadow alone gives it enough edge definition
+     without a drawn line around it. */
+  box-shadow: 0 1px 3px rgba(139, 105, 20, 0.08);
+  border-radius: var(--radius-a);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+}
+.game-card:hover {
+  /* A real "lifted off the table" float, not just a nudge -- a bigger
+     scale, real height, and a soft blurred shadow underneath it (instead
+     of the flat hard-edged --shadow-warm alone) to actually sell it as
+     floating rather than just moved. z-index keeps it drawn over
+     whatever neighboring cards it now visually overlaps. */
+  transform: translateY(-14px) scale(1.12) rotate(-0.6deg);
+  box-shadow: 0 26px 34px -12px rgba(74, 59, 25, 0.42), 0 6px 0 0 rgba(var(--shadow-warm), 0.3);
+  z-index: 5;
+}
+.game-card .art {
+  aspect-ratio: 1 / 1;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--peel-200), var(--peel-300));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: var(--ink-900);
+}
+.game-card .art img { width: 100%; height: 100%; object-fit: cover; }
+.game-card .art .art-code {
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  color: var(--ink-800);
+  opacity: 0.55;
+}
+.game-card .title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-900);
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.game-card .system {
+  font-size: 11px;
+  color: var(--ink-700);
+  opacity: 0.75;
+}
+.fav-toggle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(255, 253, 246, 0.85);
+  border: none;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.fav-toggle:hover { transform: scale(1.18); }
+.fav-toggle svg { fill: none; stroke: var(--ink-700); stroke-width: 1.6; stroke-linejoin: round; }
+.fav-toggle.active svg { fill: var(--peel-500); stroke: var(--brown-600); }
+.fav-toggle:not(.active) { opacity: 0.6; }
+
+.delete-toggle {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(255, 253, 246, 0.85);
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.12s ease, transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.game-card:hover .delete-toggle { opacity: 0.7; }
+.delete-toggle:hover { transform: scale(1.18); }
+.delete-toggle svg { fill: none; stroke: var(--ink-700); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.delete-toggle:hover { opacity: 1 !important; background: #fdeae3; }
+.delete-toggle:hover svg { stroke: var(--berry-600); }
+
+.game-card.selected {
+  box-shadow: 0 0 0 3px var(--peel-500), 0 6px 0 0 rgba(var(--shadow-warm), 0.25);
+}
+.select-toggle {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+}
+.select-toggle input { position: absolute; opacity: 0; width: 26px; height: 26px; margin: 0; pointer-events: none; }
+/* pointer-events:none keeps the invisible input out of the way of real
+   pointer hit-testing (belt-and-suspenders alongside the JS fix in
+   ui.js, which is what actually stops the click-forwarding bug -- see
+   the comment there for why pointer-events alone doesn't, since a
+   <label>'s forwarding to its control is a programmatic default action,
+   not a hit-testing behavior CSS can intercept). */
+.select-toggle .select-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255, 253, 246, 0.9);
+  border: 2px solid var(--peel-400);
+}
+.select-toggle .select-check svg { fill: none; stroke: var(--ink-700); stroke-width: 2.2; opacity: 0; }
+.select-toggle input:checked + .select-check {
+  background: var(--peel-500);
+  border-color: var(--brown-600);
+}
+.select-toggle input:checked + .select-check svg { opacity: 1; stroke: var(--ink-900); }
+
+.playtime-badge {
+  align-self: flex-start;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--brown-600);
+  background: var(--peel-200);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--ink-700);
+}
+.empty-state .doodle { margin-bottom: 10px; opacity: 0.85; transform: rotate(-6deg); display: inline-block; }
+.empty-state h3 { margin: 6px 0 6px; color: var(--ink-900); }
+.empty-state p { opacity: 0.8; font-size: 13.5px; max-width: 360px; margin: 0 auto 16px; }
+
+/* ---------- import dropzone ---------- */
+
+.dropzone {
+  border: 3px dashed var(--peel-400);
+  border-radius: var(--radius-a);
+  background: var(--peel-50);
+  padding: 34px 20px;
+  text-align: center;
+  color: var(--ink-700);
+  margin-bottom: 22px;
+}
+.dropzone.dragover {
+  background: var(--peel-200);
+  border-color: var(--peel-500);
+}
+.dropzone .big { display: inline-block; opacity: 0.75; }
+.dropzone h3 { color: var(--ink-900); margin: 6px 0 4px; }
+.dropzone small { display: block; opacity: 0.7; margin-top: 6px; }
+
+/* ---------- modals ---------- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(76, 56, 15, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+}
+.modal-backdrop[hidden] { display: none; }
+
+.modal {
+  background: var(--peel-50);
+  border: 3px solid var(--peel-300);
+  border-radius: 18px 14px 20px 12px;
+  padding: 22px;
+  max-width: 480px;
+  width: 92%;
+  max-height: 84vh;
+  overflow-y: auto;
+  box-shadow: 0 14px 0 0 rgba(139, 105, 20, 0.12);
+}
+.modal h2 {
+  margin: 0 0 4px;
+  color: var(--ink-900);
+  font-size: 18px;
+}
+.modal .modal-sub { font-size: 12.5px; color: var(--ink-700); opacity: 0.75; margin: 0 0 16px; }
+.modal .row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+.game-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0 4px;
+}
+.game-menu-item {
+  text-align: left;
+  padding: 11px 12px;
+  border-radius: 10px;
+  border: none;
+  background: var(--peel-100);
+  color: var(--ink-900);
+  font-size: 14px;
+  font-weight: 600;
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.12s ease;
+}
+.game-menu-item:hover { background: var(--peel-200); transform: scale(1.02) translateX(3px); }
+.game-menu-item.danger { color: var(--berry-600); }
+.game-menu-item.danger:hover { background: #fbe0d6; }
+
+.states-list { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+.state-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border: 2px solid var(--peel-200);
+  border-radius: var(--radius-b);
+  background: var(--peel-50);
+}
+.state-row img, .state-thumb-placeholder {
+  width: 48px; height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: linear-gradient(135deg, var(--peel-200), var(--peel-300));
+  flex-shrink: 0;
+}
+.state-info { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.state-slot { font-weight: 700; font-size: 13px; color: var(--ink-900); }
+.state-date { font-size: 11px; color: var(--ink-700); opacity: 0.7; }
+.state-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+.field { margin-bottom: 14px; }
+.field label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-800);
+  margin-bottom: 5px;
+}
+.field select, .field input[type=text] {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 2px solid var(--peel-300);
+  background: #fff;
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--ink-900);
+}
+
+/* ---------- settings ---------- */
+
+.settings-grid {
+  display: grid;
+  gap: 14px;
+}
+.settings-card {
+  background: var(--peel-50);
+  border: 1.5px solid rgba(139, 105, 20, 0.14);
+  box-shadow: 0 1px 3px rgba(139, 105, 20, 0.08);
+  border-radius: var(--radius-b);
+  padding: 18px 20px;
+}
+.settings-card h3 {
+  margin: 0 0 10px;
+  font-size: 14.5px;
+  color: var(--ink-900);
+}
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 0;
+  font-size: 13.5px;
+  color: var(--ink-800);
+  border-bottom: 1px dashed var(--peel-200);
+}
+.toggle-row:last-child { border-bottom: none; }
+.toggle-row .hint { display:block; font-size: 11px; opacity: 0.65; margin-top: 2px; }
+
+.switch {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  flex-shrink: 0;
+}
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch .track {
+  position: absolute;
+  inset: 0;
+  background: var(--peel-300);
+  border-radius: 20px;
+  transition: 0.15s;
+}
+.switch .track::before {
+  content: "";
+  position: absolute;
+  width: 16px; height: 16px;
+  left: 3px; top: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: 0.15s;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+.switch input:checked + .track { background: var(--leaf-500); }
+.switch input:checked + .track::before { transform: translateX(18px); }
+
+/* ---------- core / console badges ---------- */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 8px;
+}
+.badge.ok { background: #e4efd6; color: var(--leaf-600); }
+.badge.stub { background: #f3e0d4; color: var(--berry-600); }
+
+/* ---------- player ---------- */
+
+.player-view {
+  position: fixed;
+  inset: 0;
+  background: #17140b;
+  z-index: 400;
+  display: flex;
+  flex-direction: column;
+}
+.player-view[hidden] { display: none; }
+/* alt-engine systems (ZX Spectrum/jsspeccy3, BBC Micro/jsbeeb, Atari
+   8-bit/Sfotty Pie) don't go through EmulatorJS, and native systems
+   (GameCube/Wii, PS2, ...) aren't even a web page, so none of these
+   controls have anything to act on for either. */
+.player-view.alt-engine [data-emulatorjs-only],
+.player-view.native-engine [data-emulatorjs-only] { display: none; }
+
+.native-embed-target {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--peel-300);
+  font-size: 14px;
+  text-align: center;
+  padding: 24px;
+}
+
+#ejs-container {
+  flex: 1;
+  min-height: 0;
+  background: #000;
+  /* The actual cursor-hiding-while-playing behavior lives inside the
+     iframe itself now (idle-timeout based -- see iframeDoc/
+     attachAltEngineChrome in player.js), not here. This container is
+     effectively always fully covered by the iframe, but leaving this at
+     the normal default cursor (rather than forcing it off) means any
+     sliver that isn't covered -- edges, a load transition -- never
+     strands the pointer invisible outside the iframe's own logic. */
+}
+
+.player-loading {
+  position: fixed;
+  inset: 0;
+  /* App-wide now, not scoped inside .player-view -- needs to sit above
+     everything (modals, the grain overlay, the player itself), not just
+     the game canvas. */
+  z-index: 550;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #17140b;
+  cursor: default;
+}
+.player-loading[hidden] { display: none; }
+/* Default (dark) is for the two game-related moments (booting, returning
+   to the library afterward) -- both happen while a dark game canvas is
+   still visible underneath. Anything triggered from the library itself
+   (ROM import, ...) uses this instead, so a light-themed action doesn't
+   hard-cut to a near-black takeover screen. */
+.player-loading.light {
+  background: rgba(255, 253, 246, 0.94);
+}
+.player-loading.light .player-loading-title { color: var(--ink-900); }
+.player-loading.light .player-loading-sub { color: var(--ink-700); }
+.player-loading-icon {
+  width: 64px;
+  height: 64px;
+  animation: player-loading-spin 5s linear infinite;
+}
+/* Non-uniform stops (not a plain 0deg->1080deg linear spin) so the swirl
+   visibly winds up from a standstill, holds top speed through the
+   middle, then winds back down to a full stop for the last fifth of the
+   cycle before winding up again -- degrees per stop trace a sin^2
+   speed curve rather than a constant one. */
+@keyframes player-loading-spin {
+  0%   { transform: rotate(0deg); }
+  8%   { transform: rotate(7deg); }
+  16%  { transform: rotate(52deg); }
+  24%  { transform: rotate(160deg); }
+  32%  { transform: rotate(331deg); }
+  40%  { transform: rotate(540deg); }
+  48%  { transform: rotate(749deg); }
+  56%  { transform: rotate(920deg); }
+  64%  { transform: rotate(1028deg); }
+  72%  { transform: rotate(1073deg); }
+  80%, 100% { transform: rotate(1080deg); }
+}
+.player-loading-title {
+  color: var(--peel-100);
+  font-weight: 700;
+  font-size: 16px;
+}
+.player-loading-sub {
+  color: var(--peel-300);
+  font-size: 13px;
+  opacity: 0.85;
+  max-width: 420px;
+  text-align: center;
+  padding: 0 20px;
+}
+/* Sits directly on the dark overlay (no light panel behind it like the
+   pause menu's buttons have), so it needs its own light-on-dark styling
+   rather than the default .btn.ghost (dark text, meant for light
+   backgrounds). Only ever shown for the actual game-loading case -- see
+   showLoading in player.js -- not the generic/import uses of this same
+   overlay. */
+.player-loading-back {
+  margin-top: 6px;
+  color: var(--peel-100);
+  border-color: rgba(255, 253, 246, 0.35);
+}
+.player-loading-back:hover { background: rgba(255, 253, 246, 0.12); }
+.player-loading-back .btn-ico { stroke: var(--peel-100); }
+
+/* Small, unobtrusive corner affordance for anyone who doesn't know Esc
+   pauses -- not a full topbar, just enough to be discoverable. */
+.pause-hint {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 410;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(23, 20, 11, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.4;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.pause-hint:hover { opacity: 1; transform: scale(1.1); }
+.pause-hint .btn-ico { stroke: var(--peel-300); width: 18px; height: 18px; }
+.player-view.paused .pause-hint { display: none; }
+
+.player-pause-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 420;
+  background: rgba(15, 12, 5, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+}
+.player-pause-overlay[hidden] { display: none; }
+
+.pause-panel {
+  background: var(--peel-50);
+  border: 3px solid var(--peel-300);
+  border-radius: 18px 14px 20px 12px;
+  padding: 26px 30px;
+  max-width: 560px;
+  width: 92%;
+  max-height: 84vh;
+  overflow-y: auto;
+  text-align: center;
+  box-shadow: 0 14px 0 0 rgba(139, 105, 20, 0.25);
+}
+.pause-panel h2 { margin: 0 0 4px; color: var(--ink-900); }
+
+.pause-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+.player-btn-group {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  background: var(--peel-100);
+  border-radius: var(--radius-c);
+}
+
+.toast {
+  position: fixed;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ink-900);
+  color: var(--peel-100);
+  padding: 10px 18px;
+  border-radius: var(--radius-a);
+  font-size: 13px;
+  z-index: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
+
+.hidden { display: none !important; }
+
+@media (prefers-color-scheme: dark) {
+  /* B-NAN keeps its warm paper-yellow look in both system themes on
+     purpose -- it's the app's identity, not a light/dark surface. */
+}
+
+html { font-size: calc(16px * var(--ui-scale, 1)); }
+
+body.high-contrast {
+  --peel-100: #fffdf3;
+  --peel-150: #fff3cf;
+  --ink-700: #2c2306;
+  --ink-800: #221b04;
+  --ink-900: #171200;
+}
+body.high-contrast .game-card,
+body.high-contrast .settings-card,
+body.high-contrast .modal {
+  border-width: 3px;
+}

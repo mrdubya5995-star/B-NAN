@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" >
+		<meta 			name="viewport"
+			content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+		>
+		<title>Sfotty Pie</title>
+		<link rel="icon" type="image/svg+xml" href="/a8/sfotty-pie.svg" >
+		<!-- Constant social-card tags. The per-page og:title/og:description are
+		     injected by the prerender pass (see head.ts); these never vary, so
+		     they live here and are inherited by every prerendered page. The
+		     1200x630 card (media/og.svg -> public/og.png) is referenced
+		     root-relative; give og:image an absolute URL once SITE_ORIGIN lands,
+		     since a few scrapers require it. -->
+		<meta property="og:site_name" content="Sfotty Pie" >
+		<meta property="og:type" content="website" >
+		<meta property="og:image" content="/a8/og.png" >
+		<meta property="og:image:width" content="1200" >
+		<meta property="og:image:height" content="630" >
+		<meta 			property="og:image:alt"
+			content="Sfotty Pie - Atari 8-bit emulator, in your browser"
+		>
+		<meta name="twitter:card" content="summary_large_image" >
+		<style>
+			html,
+			body,
+			#app {
+				margin: 0;
+				height: 100%;
+				background: #000;
+			}
+			html,
+			body {
+				/* It's an app, not a document: no rubber-band scroll, no
+				   pull-to-refresh, no double-tap zoom, no iOS font inflation,
+				   no tap-highlight flash on the touch controls. */
+				overflow: hidden;
+				overscroll-behavior: none;
+				touch-action: manipulation;
+				-webkit-text-size-adjust: 100%;
+				-webkit-tap-highlight-color: transparent;
+			}
+		</style>
+		<script type="module" crossorigin src="/a8/_app/assets/index-BgU4ZQfL.js"></script>
+		<link rel="modulepreload" crossorigin href="/a8/_app/assets/prerender-BD1L_nRh.js">
+		<link rel="stylesheet" crossorigin href="/a8/_app/assets/index-B6M1yK5X.css">
+	<meta property="og:title" content="Sfotty Pie">
+<meta name="description" content="A cycle-exact 6502 toolkit: run the Atari 8-bit in your browser, plus a 6502 core and assembler.">
+<meta property="og:description" content="A cycle-exact 6502 toolkit: run the Atari 8-bit in your browser, plus a 6502 core and assembler."></head>
+	<body>
+		<main id="app"><main class="flex h-full flex-col overflow-y-auto bg-black text-neutral-300"><div class="flex flex-1 flex-col items-center justify-center gap-6 p-8 text-center"><img src="/sfotty-pie.svg" alt width="176" height="176" class="size-36 sm:size-44"><h1 class="text-3xl font-semibold text-white">Sfotty Pie</h1><p class="max-w-prose text-neutral-400">Sfotty Pie is a set of tools for the 6502 (Sixty-Five-Oh-Two), the 8-bit CPU behind the Atari 8-bit, Apple II, Commodore 64, NES, and many others. It spans a cycle-exact 6502 core, an Atari 8-bit machine, and a 6502 assembler.</p><div class="flex flex-wrap items-center justify-center gap-3"><a href="/a8/emu" class="rounded-sm bg-neutral-200 px-5 py-2 font-medium text-neutral-900 hover:bg-white">Atari 8-bit emulator</a><a href="https://github.com/cyco130/sfotty-pie" target="_blank" rel="noreferrer" class="rounded-sm border border-neutral-700 px-5 py-2 font-medium text-neutral-200 hover:bg-neutral-900">GitHub</a></div></div><footer class="p-6 text-center text-xs text-neutral-500"><p class="mx-auto max-w-prose">Sfotty Pie is MIT-licensed and is not affiliated with Atari. Bundled replacement firmware images (AltirraOS, Altirra BASIC, Atari++) are used under their own licenses. <a href="/legal/THIRD-PARTY-LICENSES.md" target="_blank" rel="noreferrer" class="underline hover:text-neutral-300">Third-party licenses</a>.</p></footer></main><script type="isodata"></script></main>
+	</body>
+</html>

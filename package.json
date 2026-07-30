@@ -1,0 +1,83 @@
+{
+  "name": "bnan",
+  "version": "1.0.0",
+  "description": "B-NAN — a friendly little multi-system game emulator.",
+  "private": true,
+  "main": "electron/main.js",
+  "homepage": "https://example.com/bnan",
+  "author": {
+    "name": "B-NAN",
+    "email": "getdicer@gmail.com"
+  },
+  "license": "GPL-3.0-or-later",
+  "scripts": {
+    "start": "electron .",
+    "web": "node tools/serve.js",
+    "site": "node tools/serve-site.js",
+    "fetch:native": "node tools/fetch-native-emulators.js",
+    "dist:mac": "electron-builder --mac dmg",
+    "dist:win": "electron-builder --win nsis --win portable",
+    "dist:linux": "electron-builder --linux AppImage deb",
+    "dist:all": "electron-builder --mac dmg --win nsis --win portable --linux AppImage deb"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "dependencies": {
+    "node-window-manager": "^2.2.4"
+  },
+  "build": {
+    "appId": "com.bnan.app",
+    "productName": "B-NAN",
+    "copyright": "Copyright (c) 2026",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build-resources"
+    },
+    "files": [
+      "electron/**/*",
+      "web/**/*",
+      "tools/**/*",
+      "!web/assets/icons/*.iconset",
+      "package.json"
+    ],
+    "mac": {
+      "icon": "web/assets/icons/banana.icns",
+      "category": "public.app-category.games",
+      "target": [{ "target": "dmg", "arch": ["arm64", "x64"] }],
+      "extraResources": [
+        { "from": "native/manifest.lock.json", "to": "native/manifest.lock.json" },
+        { "from": "native/darwin", "to": "native/darwin" }
+      ]
+    },
+    "win": {
+      "icon": "web/assets/icons/banana-desktop.ico",
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "extraResources": [
+        { "from": "native/manifest.lock.json", "to": "native/manifest.lock.json" },
+        { "from": "native/win32", "to": "native/win32" }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    },
+    "linux": {
+      "icon": "web/assets/icons/banana-1024.png",
+      "category": "Game",
+      "target": [
+        { "target": "AppImage", "arch": ["x64"] },
+        { "target": "deb", "arch": ["x64"] }
+      ],
+      "extraResources": [
+        { "from": "native/manifest.lock.json", "to": "native/manifest.lock.json" },
+        { "from": "native/linux", "to": "native/linux" }
+      ]
+    }
+  }
+}

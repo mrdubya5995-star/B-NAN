@@ -1,0 +1,1 @@
+import{n as e}from"./prerender-BD1L_nRh.js";import{n as t}from"./emu-context-7qJYdbo4.js";import{t as n}from"./sidebar-PxkaljYB.js";import{t as r}from"./settings-frame-CfyS2Ga7.js";function i(){let{host:i}=t();return e(r,{host:i,active:`hardware`,children:e(`div`,{class:`flex min-h-0 flex-1 flex-col overflow-y-auto`,children:e(n,{host:i})})})}export{i as default};

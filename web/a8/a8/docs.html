@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" >
+		<meta 			name="viewport"
+			content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+		>
+		<title>Getting started - Sfotty Pie</title>
+		<link rel="icon" type="image/svg+xml" href="/a8/sfotty-pie.svg" >
+		<!-- Constant social-card tags. The per-page og:title/og:description are
+		     injected by the prerender pass (see head.ts); these never vary, so
+		     they live here and are inherited by every prerendered page. The
+		     1200x630 card (media/og.svg -> public/og.png) is referenced
+		     root-relative; give og:image an absolute URL once SITE_ORIGIN lands,
+		     since a few scrapers require it. -->
+		<meta property="og:site_name" content="Sfotty Pie" >
+		<meta property="og:type" content="website" >
+		<meta property="og:image" content="/a8/og.png" >
+		<meta property="og:image:width" content="1200" >
+		<meta property="og:image:height" content="630" >
+		<meta 			property="og:image:alt"
+			content="Sfotty Pie - Atari 8-bit emulator, in your browser"
+		>
+		<meta name="twitter:card" content="summary_large_image" >
+		<style>
+			html,
+			body,
+			#app {
+				margin: 0;
+				height: 100%;
+				background: #000;
+			}
+			html,
+			body {
+				/* It's an app, not a document: no rubber-band scroll, no
+				   pull-to-refresh, no double-tap zoom, no iOS font inflation,
+				   no tap-highlight flash on the touch controls. */
+				overflow: hidden;
+				overscroll-behavior: none;
+				touch-action: manipulation;
+				-webkit-text-size-adjust: 100%;
+				-webkit-tap-highlight-color: transparent;
+			}
+		</style>
+		<script type="module" crossorigin src="/a8/_app/assets/index-BgU4ZQfL.js"></script>
+		<link rel="modulepreload" crossorigin href="/a8/_app/assets/prerender-BD1L_nRh.js">
+		<link rel="stylesheet" crossorigin href="/a8/_app/assets/index-B6M1yK5X.css">
+	<meta property="og:title" content="Getting started - Sfotty Pie">
+<meta name="description" content="Get up and running with the Sfotty Pie Atari 8-bit emulator: start it, load a disk or cartridge, and learn the controls.">
+<meta property="og:description" content="Get up and running with the Sfotty Pie Atari 8-bit emulator: start it, load a disk or cartridge, and learn the controls."></head>
+	<body>
+		<main id="app"><!--$s--><div class="flex h-full bg-black text-neutral-200"><aside class="hidden w-56 shrink-0 border-r border-neutral-800 p-4 text-sm text-neutral-400 sm:block"><a href="/a8/docs" class="text-neutral-200 hover:text-white">Docs</a></aside><main class="flex-1 overflow-y-auto p-8"><article class="mx-auto prose prose-neutral prose-invert"><!--$s-->
+<h1>Getting started</h1>
+<p>Sfotty Pie is a whole Atari 8-bit computer running in your browser - nothing to install. This page walks you from a blank screen to a running program. If a word here is new to you, don't worry: the first two sections are all you need to start playing.</p>
+<h2>1. Open the emulator</h2>
+<p><a href="/a8/emu">Launch the emulator</a>. The first time you click or tap the screen, Sfotty Pie turns the sound on - browsers only allow audio after you interact with the page, so if it's silent at first, give it a click.</p>
+<p>Everything else lives behind the <strong>Menu</strong> button in the top bar. Open it whenever you need to load something or change a setting.</p>
+<h2>2. Load something to run</h2>
+<p>Atari software comes in three shapes: <strong>disks</strong> (like floppies), <strong>cartridges</strong> (like game carts), and <strong>executables</strong> (single program files). Sfotty Pie can run all three, and you don't have to know which is which - it figures that out for you.</p>
+<p>These usually arrive as <strong>.atr</strong> disk images, <strong>.xex</strong> programs, and <strong>.car</strong> or raw cartridge dumps - the common Atari formats. Sfotty Pie supports the most widely used cartridge types.</p>
+<p>The quickest way in:</p>
+<ul>
+<li><strong>Menu → Boot image…</strong> - pick a file from your computer. Sfotty Pie detects what it is and boots straight into it.</li>
+<li><strong>Menu → Library…</strong> - your own collection. Drag files or whole folders onto the window to add them, or pick from what's already there. Each item offers <strong>Boot</strong> to start it, plus options like <strong>Attach to D1:</strong> (put a disk in the drive) or <strong>Attach cartridge</strong>.</li>
+</ul>
+<p>Disks load into the <strong>D1:</strong> drive - the Atari's first disk drive. Cartridges and executables just boot. That's it: once something's running, you're playing.</p>
+<h2>3. Controls</h2>
+<p><strong>Joystick.</strong> Most games use the joystick. Move with the <strong>arrow keys</strong> and fire with <strong>Left Shift</strong>. Prefer a real controller? Plug in a <strong>gamepad</strong> and set it up under <strong>Menu → Controllers…</strong>. On a phone or tablet, use the on-screen stick.</p>
+<p><strong>Console keys.</strong> Real Ataris have four special buttons - <strong>Start</strong>, <strong>Select</strong>, <strong>Option</strong>, and <strong>Reset</strong>. Games lean on them constantly (&quot;press <strong>Start</strong>&quot;, &quot;<strong>Select</strong> a level&quot;). You'll find them as on-screen buttons, and you can also trigger them from <strong>Keyboard shortcuts…</strong>.</p>
+<p><strong>Typing.</strong> By default the keyboard is in <strong>Character mode</strong>: you type normally and your letters land as the matching Atari keys. Some games instead expect certain <em>physical</em> keys (like the keys where W, A, S, D sit), so switch to <strong>Positional mode</strong> for those, from <strong>Menu → Keyboard shortcuts…</strong>.</p>
+<p><strong>Pasting text.</strong> Paste your computer's clipboard straight into the Atari with <strong>Cmd+V</strong> on a Mac or <strong>Alt+V</strong> on Windows and Linux (Ctrl+V belongs to the Atari - it types the real Ctrl+V key). The text is typed through the Atari's own operating system, so it lands anywhere the machine reads the keyboard: paste a BASIC listing at the READY prompt and watch it type itself in. Firefox and Safari ask for a click on a small <strong>Paste</strong> confirmation first. A few tricks for listings: <code>~</code> toggles inverse video, <code>{125}</code> or <code>{$7D}</code> inserts any ATASCII code by number (shown as its glyph rather than performed - write <code>{!125}</code> to make a control code act), and Atari glyphs like <code>♥</code> in the pasted text come through as themselves.</p>
+<blockquote>
+<p><strong>Not using a Chromium-based browser</strong> (Chrome, Edge, Brave, Arc)? Firefox and Safari can't tell Sfotty Pie which keyboard you have, so shortcut labels assume a US layout and may not match your keys. Fix it once: open <strong>Menu → Keyboard shortcuts…</strong> and set your <strong>Keyboard layout</strong>.</p>
+</blockquote>
+<h2>4. Choose your Atari</h2>
+<p>Open <strong>Menu → Machine configuration…</strong> to pick which Atari you're emulating:</p>
+<ul>
+<li><strong>Model</strong> - 400/800, 1200XL, XL/XE, or XEGS. If you're unsure, the default is a safe bet.</li>
+<li><strong>BASIC</strong> - the Atari's built-in programming language. Most disk games expect it <strong>off</strong>; leave it off unless a program asks for it.</li>
+<li><strong>RAM</strong> and <strong>TV</strong> (NTSC/PAL) - you can usually leave these alone.</li>
+</ul>
+<p>Changes here <strong>reboot the machine</strong> to take effect, just like flipping a real Atari off and on.</p>
+<p><strong>Firmware (OS and BASIC).</strong> Sfotty Pie comes ready to run with free, legal replacement ROMs (AltirraOS, Altirra BASIC, and Atari++), so you don't need anything from a real Atari to get started. If you'd rather run the original Atari OS or BASIC, add those ROM images to your <strong>Library</strong>, then choose them under <strong>Menu → ROM preferences…</strong>.</p>
+<h2>5. Finding your way around</h2>
+<ul>
+<li><strong>Menu</strong> - the launcher for everything above.</li>
+<li><strong>Command palette</strong> - search for any action by name (loading, settings, resets, and more) without hunting through menus.</li>
+<li><strong>Keyboard shortcuts…</strong> - see every shortcut and change it to taste. This is also where you set your keyboard layout.</li>
+</ul>
+<p>A few handy extras: <strong>pause</strong> the machine when you step away, turn on <strong>Turbo</strong> to run unthrottled (sound mutes while it's on), and go <strong>Full screen</strong> for the real thing. If a program ever wedges, a reboot (<strong>cold reset</strong>) starts it fresh.</p>
+<h2>6. On your phone or tablet</h2>
+<p>Sfotty Pie runs the same in a mobile browser - nothing to install. On a touch screen you get <strong>on-screen controls</strong>: a joystick and fire button, the console keys (Start, Select, Option, Reset), a keyboard, and a <strong>paste</strong> tab - type or paste text there (long-press for your phone's own paste) and send it to the Atari. You can show or hide the controls, and swap the stick and fire to whichever side suits you, from the on-screen menu.</p>
+<p>Collecting software is easier on a computer, so a handy trick is to build and organize your <strong>Library</strong> there, <strong>Export</strong> it to a single <code>.zip</code>, then <strong>Import</strong> that <code>.zip</code> on your phone - the whole collection comes across at once.</p>
+<p>One thing to know: your library and settings live in your browser's own storage, and browsers sometimes clear that storage to reclaim space. Keep an exported <code>.zip</code> as a backup so nothing is ever truly lost.</p>
+<h2>7. When a program won't run</h2>
+<p>Not everything runs yet. When something refuses to start, it's usually one of two things:</p>
+<ul>
+<li><strong>Sfotty Pie isn't accurate enough yet.</strong> The emulated Atari is still a work in progress, and some programs rely on hardware behavior it doesn't reproduce exactly. These will improve over time - it's not something you can fix from your end.</li>
+<li><strong>The program needs a specific machine.</strong> Many titles were written for one particular setup. That can be a <strong>configuration</strong> - a certain model (400/800 vs XL/XE), TV standard (NTSC vs PAL), or amount of <strong>RAM</strong> (say 128K) - which you can match under <strong>Menu → Machine configuration…</strong>. Or it can be a specific <strong>OS ROM</strong>: our free replacement is very compatible but not identical to Atari's, and a few programs need an original (for example the 400/800's <strong>OS-B</strong>). If you have that ROM, add it to your <strong>Library</strong> and select it under <strong>Menu → ROM preferences…</strong>.</li>
+</ul>
+<p>A game's original documentation usually says which machine it expects, which is the quickest way to know what to match.</p><!--/$s--></article></main></div><!--/$s--><script type="isodata"></script></main>
+	</body>
+</html>

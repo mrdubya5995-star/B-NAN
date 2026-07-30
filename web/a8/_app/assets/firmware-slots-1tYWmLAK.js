@@ -1,0 +1,1 @@
+function e(e,t){switch(e){case`400/800`:return t===`pal`?`800-pal`:`800-ntsc`;case`1200xl`:return`1200xl`;case`xegs`:return`xegs`;default:return`xlxe`}}export{e as t};

@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build outputs (regenerate with npm run dist:*)
+dist/
+
+# Native emulator binaries -- fetched by tools/fetch-native-emulators.js,
+# not meant to be committed (see docs/NATIVE_EMULATORS.md). Keep the
+# manifest (source config) and manual-drop READMEs, ignore everything
+# else including whatever a human drops in there.
+native/darwin/
+native/win32/
+native/linux/
+native/manifest.lock.json
+native/manual-drop/*/*
+!native/manual-drop/*/README.txt
+
+# Landing page downloads -- these mirror dist/ output, same reasoning
+site/downloads/*.exe
+site/downloads/*.dmg
+site/downloads/*.AppImage
+site/downloads/*.deb
+
+# OS/editor cruft
+.DS_Store
+*.swp
+
+# electron-builder debug output
+builder-debug.yml
+builder-effective-config.yaml

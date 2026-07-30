@@ -1,0 +1,1 @@
+import{n as e,t,x as n,y as r}from"./prerender-BD1L_nRh.js";function i(){let i=document.querySelector(`#app`);if(!i)return;let a=location.pathname;(a===`/`||a.startsWith(`/a8/docs`))&&i.firstChild?n(e(t,{}),i):r(e(t,{}),i)}i();

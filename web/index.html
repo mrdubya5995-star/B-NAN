@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>B-NAN</title>
+<meta name="description" content="B-NAN — a friendly little multi-system game emulator." />
+<meta name="theme-color" content="#fff1c9" />
+<link rel="icon" href="assets/icons/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icons/banana-32.png" />
+<link rel="apple-touch-icon" href="assets/icons/banana-180.png" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="stylesheet" href="src/styles.css" />
+</head>
+<body>
+<svg style="display:none">
+  <defs>
+    <symbol id="icon-star" viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" /></symbol>
+    <symbol id="icon-sliders" viewBox="0 0 24 24"><path d="M4 6h20M4 12h20M4 18h20" /><circle cx="9" cy="6" r="2" /><circle cx="16" cy="12" r="2" /><circle cx="11" cy="18" r="2" /></symbol>
+    <symbol id="icon-save" viewBox="0 0 24 24"><path d="M5.5 4.5H15l3.5 3.5V19a1 1 0 01-1 1H5.5a1 1 0 01-1-1V5.5a1 1 0 011-1Z" /><path d="M8 4.5V9.5H15V4.5" /><path d="M7.5 13.5H16.5V20H7.5Z" /></symbol>
+    <symbol id="icon-folder" viewBox="0 0 24 24"><path d="M3 8L5 5H10L12 8H20A1 1 0 0121 9V18A1 1 0 0120 19H4A1 1 0 013 18V8Z" /></symbol>
+    <symbol id="icon-camera" viewBox="0 0 24 24"><path d="M4 8H7.5L9.2 5.8H14.8L16.5 8H20A1 1 0 0121 9V18A1 1 0 0120 19H4A1 1 0 013 18V9A1 1 0 014 8Z" /><circle cx="12" cy="13.5" r="3.4" /></symbol>
+    <symbol id="icon-expand" viewBox="0 0 24 24"><path d="M4 9V4H9M15 4H20V9M20 15V20H15M9 20H4V15" /></symbol>
+    <symbol id="icon-back" viewBox="0 0 24 24"><path d="M15 5L8 12L15 19M8 12H20" /></symbol>
+    <symbol id="icon-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M9.5 7V5a1 1 0 011-1h3a1 1 0 011 1v2M6.5 7l1 12.5a1 1 0 001 .9h7a1 1 0 001-.9L17.5 7M10 11v6M14 11v6" /></symbol>
+    <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16" /></symbol>
+    <symbol id="icon-check" viewBox="0 0 24 24"><path d="M4 12.5L9.5 18L20 6" /></symbol>
+    <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5L20.5 20.5" /></symbol>
+    <symbol id="icon-chevron-right" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" /></symbol>
+    <symbol id="icon-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" /><rect x="13" y="4" width="7" height="7" /><rect x="4" y="13" width="7" height="7" /><rect x="13" y="13" width="7" height="7" /></symbol>
+    <symbol id="icon-list" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" /></symbol>
+    <symbol id="icon-window-min" viewBox="0 0 24 24"><path d="M5 12h14" /></symbol>
+    <symbol id="icon-window-max" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" /></symbol>
+    <symbol id="icon-window-restore" viewBox="0 0 24 24"><rect x="8.5" y="5.5" width="10" height="10" /><path d="M5.5 9.5v9h9" /></symbol>
+    <symbol id="icon-window-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></symbol>
+  </defs>
+</svg>
+
+<div class="grain"></div>
+
+<div id="app">
+  <header class="app-topbar" id="app-topbar">
+    <button class="topbar-brand" id="btn-home" title="Back to home">
+      <img src="assets/icons/banana-mark.svg" alt="" />
+      <span class="topbar-brand-name">B-NAN</span>
+    </button>
+    <div class="topbar-spacer"></div>
+    <button class="btn primary pill" id="btn-add-game"><svg class="btn-ico"><use href="#icon-plus"/></svg> Add a new game</button>
+    <button class="topbar-avatar" id="btn-avatar" title="Settings">
+      <svg><use href="#icon-sliders"/></svg>
+    </button>
+    <div class="window-controls" id="window-controls">
+      <button class="win-btn" id="win-minimize" title="Minimize"><svg class="btn-ico"><use href="#icon-window-min"/></svg></button>
+      <button class="win-btn" id="win-maximize" title="Maximize"><svg class="btn-ico"><use href="#icon-window-max"/></svg></button>
+      <button class="win-btn win-close" id="win-close" title="Close"><svg class="btn-ico"><use href="#icon-window-close"/></svg></button>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <!-- The library home screen: recent-games hero + the full library -->
+    <section class="view" id="view-library">
+      <section class="hero-recent hidden" id="hero-recent">
+        <div class="hero-ambient-bg" id="hero-ambient-bg"></div>
+        <h2 class="section-heading">Recents</h2>
+        <div class="hero-row-wrap">
+          <div class="hero-content" id="hero-content"><!-- featured card + scroll row, filled by JS --></div>
+          <button class="hero-scroll-hint hidden" id="hero-scroll-hint" title="Scroll for more">
+            <svg class="btn-ico"><use href="#icon-chevron-right"/></svg>
+          </button>
+        </div>
+      </section>
+
+      <div class="full-library-header">
+        <h2 class="section-heading">Full Library</h2>
+        <div class="full-library-controls">
+          <div class="search-wrap" id="search-wrap">
+            <svg class="search-ico"><use href="#icon-search"/></svg>
+            <input id="search-input" type="text" placeholder="Search your games…" />
+          </div>
+          <div class="sortby-wrap">
+            <label for="sort-by">Sort by</label>
+            <select id="sort-by">
+              <option value="alpha">Alphabetical Order</option>
+              <option value="recentlyAdded">Recently Added</option>
+              <option value="recentlyPlayed">Recently Played</option>
+              <option value="mostPlayed">Most Played</option>
+              <option value="system">System</option>
+              <option value="favorites">★ Favorites Only</option>
+            </select>
+          </div>
+          <div class="display-toggle" id="display-toggle">
+            <button class="display-toggle-btn active" id="btn-display-grid" title="Grid view"><svg class="btn-ico"><use href="#icon-grid"/></svg></button>
+            <button class="display-toggle-btn" id="btn-display-list" title="List view"><svg class="btn-ico"><use href="#icon-list"/></svg></button>
+          </div>
+          <button class="btn ghost" id="btn-select-mode">Select</button>
+          <button class="btn ghost hidden" id="btn-select-all">Select All</button>
+          <button class="btn ghost hidden" id="btn-cancel-select">Cancel</button>
+          <button class="btn danger hidden" id="btn-bulk-delete">
+            <svg class="btn-ico"><use href="#icon-trash"/></svg> Delete <span id="bulk-count"></span>
+          </button>
+        </div>
+        <div class="topbar-chips" id="topbar-chips"><!-- console filter chips --></div>
+      </div>
+
+      <div class="game-grid" id="game-grid"></div>
+      <div class="game-list hidden" id="game-list"></div>
+      <div class="empty-state hidden" id="library-empty">
+        <img class="doodle" src="assets/icons/banana-mark.svg" alt="" width="56" height="56" />
+        <h3>Nothing here yet</h3>
+        <p>Import a ROM to get started — use the Add Game button up top, or drag a file anywhere in the window.</p>
+        <button class="btn primary" id="empty-add-game">Add a Game</button>
+      </div>
+    </section>
+
+    <!-- Settings -->
+    <section class="view" id="view-settings" hidden>
+      <div class="view-heading">
+        <h1>Settings</h1>
+        <button class="btn ghost small" id="btn-settings-back-top"><svg class="btn-ico"><use href="#icon-back"/></svg> Back to Library</button>
+      </div>
+      <p class="view-sub">Kept short on purpose.</p>
+      <div class="settings-grid" id="settings-grid"></div>
+      <div class="row"><button class="btn ghost" id="btn-settings-back">Back to Library</button></div>
+    </section>
+  </main>
+</div>
+
+<!-- Player overlay -->
+<div class="player-view" id="player-view" hidden>
+  <div id="ejs-container"></div>
+
+  <!-- Hidden by default: no topbar clutter, no cursor, nothing between the
+       player and the game. Esc (or the floating pause hint) brings this
+       up, with the cursor back and every control in one place. -->
+  <button class="pause-hint" id="btn-pause-hint" title="Press Esc to pause">
+    <svg class="btn-ico"><use href="#icon-sliders"/></svg>
+  </button>
+  <div class="player-pause-overlay" id="player-pause-overlay" hidden>
+    <div class="pause-panel">
+      <h2 id="pause-game-name"></h2>
+      <p class="modal-sub">Paused — press Esc or Resume to keep playing.</p>
+      <div class="row" style="justify-content:center; margin-bottom: 14px;">
+        <button class="btn primary" id="btn-resume">Resume</button>
+        <button class="btn ghost" id="btn-exit-player"><svg class="btn-ico"><use href="#icon-back"/></svg> Back to Library</button>
+      </div>
+      <div class="pause-controls">
+        <div class="player-btn-group" title="Save your progress to a file, or load one back in" data-emulatorjs-only>
+          <button class="btn small" id="btn-save-state"><svg class="btn-ico"><use href="#icon-save"/></svg> Save to File</button>
+          <button class="btn small" id="btn-load-state"><svg class="btn-ico"><use href="#icon-folder"/></svg> Load from File</button>
+          <input type="file" id="load-state-input" accept=".state" hidden />
+        </div>
+        <div class="player-btn-group" title="Capture &amp; display">
+          <button class="btn small" id="btn-screenshot" data-emulatorjs-only><svg class="btn-ico"><use href="#icon-camera"/></svg> Screenshot</button>
+          <button class="btn small" id="btn-fullscreen"><svg class="btn-ico"><use href="#icon-expand"/></svg> Fullscreen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- App-wide loading overlay -- NOT scoped to the player. Shown for any
+     genuinely blocking wait (a game booting until the core signals it's
+     actually running, returning to the library afterward, importing a
+     big ROM, ...): without this, a slow operation is just an
+     unresponsive-looking screen with zero feedback, which reads as
+     frozen/broken even when it's genuinely still working. -->
+<div class="player-loading" id="player-loading" hidden>
+  <img class="player-loading-icon" src="assets/icons/loading-swirl.svg" alt="" />
+  <div class="player-loading-title" id="player-loading-title">Loading…</div>
+  <div class="player-loading-sub" id="player-loading-sub"></div>
+  <!-- Only shown while a game is actually booting (not for the generic/
+       import/returning-to-library uses of this same overlay) -- lets you
+       bail out of a stuck or just-too-slow load instead of waiting out
+       the 60s automatic give-up. -->
+  <button class="btn ghost player-loading-back" id="btn-loading-back" hidden>
+    <svg class="btn-ico"><use href="#icon-back"/></svg> Back to Library
+  </button>
+</div>
+
+<!-- Add Game modal: dropzone / browse -->
+<div class="modal-backdrop" id="add-game-modal-backdrop" hidden>
+  <div class="modal">
+    <h2>Add a Game</h2>
+    <p class="modal-sub">Drop files in, or browse. B-NAN keeps everything on this device — nothing is uploaded anywhere.</p>
+    <div class="dropzone" id="dropzone">
+      <img class="big" src="assets/icons/banana-mark.svg" alt="" width="48" height="48" />
+      <h3>Drag ROM files here</h3>
+      <p>or</p>
+      <button class="btn primary" id="btn-browse">Browse Files…</button>
+      <input type="file" id="file-input" multiple hidden />
+      <small>Single game files, or .zip files with one game inside. B-NAN does not provide or download ROMs — bring your own legally-owned dumps.</small>
+    </div>
+    <div id="import-log"></div>
+    <div class="row"><button class="btn ghost" id="add-game-close">Close</button></div>
+  </div>
+</div>
+
+<!-- Generic modal: game options menu, core list, delete-confirm -->
+<div class="modal-backdrop" id="core-modal-backdrop" hidden>
+  <div class="modal" id="core-modal-body"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="src/vendor/fflate.min.js"></script>
+<script src="src/coreRegistry.js"></script>
+<script src="src/db.js"></script>
+<script src="src/artwork.js"></script>
+<script src="src/ui.js"></script>
+<script src="src/import.js"></script>
+<script src="src/player.js"></script>
+<script src="src/gameMenu.js"></script>
+<script src="src/backup.js"></script>
+<script src="src/settings.js"></script>
+<script src="src/windowChrome.js"></script><script src="src/main.js"></script>
+</body>
+</html>
